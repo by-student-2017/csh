@@ -1,0 +1,43 @@
+#! /bin/csh -f
+set filename = $1
+cp ${filename}.xyz tmp.xyz
+echo " (Version 3 format configuration file)" > tmp.cfg
+echo " M    " >> tmp.cfg
+echo " " >> tmp.cfg
+echo "          0         0         0 moves generated, tried, accepted" >> tmp.cfg
+echo "          0                     configurations saved" >> tmp.cfg
+echo " " >> tmp.cfg
+awk  'NR==4{printf "     %d molecules (of all types) \n", $1}' tmp.xyz >> tmp.cfg
+set atom_type_max = `awk '{if(m<$4 && NR>=10) m=$4} END{print m}' tmp.xyz`
+echo "         ${atom_type_max} types of molecule"  >> tmp.cfg
+echo "          1 is the largest number of atoms in a molecule"  >> tmp.cfg
+echo "          0 Euler angles are provided"  >> tmp.cfg
+echo " " >> tmp.cfg
+echo "          F (Box is not truncated octahedral)" >> tmp.cfg
+echo "            Defining vectors are:" >> tmp.cfg
+awk -v n=0.5 'NR==6{printf "              %10.6f     0.000000   0.000000  \n",($2-$1)*n }' tmp.xyz >> tmp.cfg
+awk -v n=0.5 'NR==7{printf "               0.000000  %10.6f     0.000000  \n",($2-$1)*n }' tmp.xyz >> tmp.cfg
+awk -v n=0.5 'NR==8{printf "               0.000000   0.000000  %10.6f \n", ($2-$1)*n }' tmp.xyz >> tmp.cfg
+#
+set count = 1
+while (${count} <= ${atom_type_max})
+#
+  echo " " >> tmp.cfg
+  set num_elem = `awk -v no=${count} '(NR>=10 && $4==no){print $4}' tmp.xyz | grep -c -i "${count}"`
+  echo "     ${num_elem} molecules of type  ${count}" >> tmp.cfg
+  echo "          1 atomic sites" >> tmp.cfg
+  echo "              0.000000   0.000000   0.000000" >> tmp.cfg
+  @ count += 1
+  #
+end
+#
+echo " " >> tmp.cfg
+set count = 1
+while (${count} <= ${atom_type_max})
+  awk -v no=${count} -v n=2 '(NR>=10 && $4==no){printf "%12.6f %12.6f %12.6f \n",($1-0.5)*n,($2-0.5)*n,($3-0.5)*n}' tmp.xyz >> tmp.cfg
+  @ count += 1
+end
+#
+mv tmp.cfg ${filename}.cfg
+rm -f -r tmp.xyz
+

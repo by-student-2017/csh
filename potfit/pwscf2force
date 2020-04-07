@@ -1,0 +1,131 @@
+#! /bin/csh -f
+
+set nx = $1
+set ny = $2
+set nz = $3
+
+echo -n "" > tmp.xyzf
+cp *.*.out tmp.out
+set num_atoms = `awk '{if($1=="number" && $3=="atoms/cell"){printf "%d",$5}}' tmp.out`
+echo "#N ${num_atoms} 1"
+set num_atom_type = `awk '{if($1=="number" && $4=="types"){printf "%d",$6}}' tmp.out`
+#
+if (-f tmp.md.in) then
+  set upf_list = `grep .UPF tmp.md.in | awk '{printf "%s ",$3}'`
+  set MD_flag  = 1
+  set SCF_flag = 0
+endif
+if (-f tmp.scf.in) then
+  set upf_list = `grep .UPF tmp.scf.in | awk '{printf "%s ",$3}'`
+  set SCF_flag = 1
+  set MD_flag  = 0
+endif
+#
+#grep "PseudoPot." *.scf.out
+set element = `awk '{if($1=="PseudoPot."){printf "%s ",$5}}' tmp.out`
+echo "#C ${element}"
+#
+echo "## force file generated from file *.*.out config 1 "
+set alat = `awk '{if($1=="lattice" && $2=="parameter"){printf "%13.8f",$5*0.52917}}' tmp.out`
+set a1 = `awk -v alat=${alat} '{if($1=="a(1)"){printf " %13.8f %13.8f %13.8f",$4*alat,$5*alat,$6*alat}}' tmp.out`
+echo "#X ${a1}"
+set a2 = `awk -v alat=${alat} '{if($1=="a(2)"){printf " %13.8f %13.8f %13.8f",$4*alat,$5*alat,$6*alat}}' tmp.out`
+echo "#Y ${a2}"
+set a3 = `awk -v alat=${alat} '{if($1=="a(3)"){printf " %13.8f %13.8f %13.8f",$4*alat,$5*alat,$6*alat}}' tmp.out`
+echo "#Z ${a3}"
+#
+echo "#W 1.000000"
+#
+set ETOT_Ry = `grep "  total energy  " tmp.out | tail -1 | sed 's/.*=//g' | sed 's/Ry//g'`
+set ETOT_eV = `echo "${ETOT_Ry}*13.6058" | bc -l | awk '{printf "%15.10f",$0}'`
+set TE_ISO = 0.0
+foreach atom (${element})
+  if ("${MD_flag}" == "1") then
+    set positions_start_line = `grep -n "ATOMIC_POSITIONS" tmp.out | tail -1 | sed 's/:.*//g'`
+    set num_atom = `awk -v psl=${positions_start_line} -v na=${num_atoms} '(psl<NR && NR<=psl+na){printf "%s \n",$1}' tmp.out | grep -c "${atom} "`
+  endif
+  if ("${SCF_flag}" == "1") then
+    set positions_start_line = `grep -n "positions" tmp.out | sed 's/:.*//g' | head -n 1`
+    set num_atom = `awk -v psl=${positions_start_line} -v na=${num_atoms} '(psl<NR && NR<=psl+na){printf "%s \n",$0}' tmp.out | grep -c " ${atom} "`
+  endif
+  foreach upf_name (${upf_list})
+    set AE_ISO = `awk -v atom=${atom} -v na=${num_atom} -v upf=${upf_name} '{if($1==atom && $4==upf){printf "%15.10f",$2*na}}' energy_data_for_isolated_atom`
+  end
+  set TE_ISO = `echo "${TE_ISO}+${AE_ISO}" | bc -l | awk '{printf "%15.10f",$0}'`
+end
+set coh_eng = `echo "(${ETOT_eV} - ${TE_ISO})/${num_atoms}" | bc -l | awk '{printf "%15.10f",$0}'`
+echo "#E ${coh_eng}"
+#
+#set stress_line = `awk '{if($1=="total" && $2=="stress"){print NR}}' tmp.out`
+#set stress_line = `grep "(Ry\/bohr\*\*3)" tmp.out | sed 's/:.*//g'`
+set stress_line =  `grep -n "total   stress" tmp.out | tail -1 | sed 's/:.*//g'`
+set stress_xx = `awk -v sl=${stress_line} 'NR==(sl+1){printf "%12.8f",$1*0.01089137}' tmp.out`
+set stress_xy = `awk -v sl=${stress_line} 'NR==(sl+1){printf "%12.8f",$2*0.01089137}' tmp.out`
+set stress_xz = `awk -v sl=${stress_line} 'NR==(sl+1){printf "%12.8f",$3*0.01089137}' tmp.out`
+set stress_yy = `awk -v sl=${stress_line} 'NR==(sl+2){printf "%12.8f",$2*0.01089137}' tmp.out`
+set stress_yz = `awk -v sl=${stress_line} 'NR==(sl+2){printf "%12.8f",$3*0.01089137}' tmp.out`
+set stress_zz = `awk -v sl=${stress_line} 'NR==(sl+3){printf "%12.8f",$3*0.01089137}' tmp.out`
+echo "#S ${stress_xx} ${stress_yy} ${stress_zz} ${stress_xy} ${stress_yz} ${stress_xz}"
+#
+echo "#F"
+#
+if ("${MD_flag}" == "1") then
+  set positions_start_line = `grep -n "ATOMIC_POSITIONS" tmp.out | tail -1 | sed 's/:.*//g'`
+endif
+if ("${SCF_flag}" == "1") then
+  set positions_start_line = `grep -n "positions" tmp.out | sed 's/:.*//g' | head -n 1`
+endif
+#echo $positions_start_line
+#grep -c "force =" tmp.out
+#set force_end_line = `grep -n "force =" tmp.out | sed 's/:.*//g' | tail -2`
+set force_start_line_md = `grep -n "Forces acting on atoms" tmp.out | tail -1 | sed 's/:.*//g'`
+set force_start_line = `echo "${force_start_line_md} + 2" | bc`
+set i = 1
+while($i <= ${num_atoms})
+  if ("${MD_flag}" == "1") then
+    set position = `awk -v psl=${positions_start_line} -v ni=$i -v alat=${alat} -v nx=${nx} -v ny=${ny} -v nz=${nz} 'NR==(psl+ni){printf " %12.8f %12.8f %12.8f \n",$2*alat*nx,$3*alat*ny,$4*alat*nz}' tmp.out`
+  endif
+  if ("${SCF_flag}" == "1") then
+    set position = `awk -v psl=${positions_start_line} -v ni=$i -v alat=${alat} 'NR==(psl+ni){printf " %12.8f %12.8f %12.8f \n",$7*alat,$8*alat,$9*alat}' tmp.out`
+  endif
+  set force = `awk -v fsl=${force_start_line} -v ni=$i 'NR==(fsl+ni-1){printf " %12.8f %12.8f %12.8f \n",$7*25.711,$8*25.711,$9*25.711}' tmp.out`
+  set atom_type = `awk -v fsl=${force_start_line} -v ni=$i 'NR==(fsl+ni-1){printf "%d",($4-1)}' tmp.out`
+  echo "$atom_type  $position  $force" >> tmp.xyzf
+  @ i = $i + 1
+end
+set i = 0
+while($i < ${num_atom_type})
+  awk -v ni=$i '{if($1==ni){printf "%s \n",$0}}' tmp.xyzf
+  @ i = $i + 1
+end
+rm -f -r tmp.xyzf
+
+# unit
+# PWscf, force: Ry/au, stress: Ry/bohr^3
+#  (force : tprnfor = .true. or relax, md, vc-md)
+#  (stress: tstress = .true. or vc-md, vc-relax)
+# VASP , TOTAL-FORCE: eV/Angstrom, stress: eV
+
+# conversion (http://greif.geo.berkeley.edu/~driver/conversions.html)
+# (https://courses.physics.illinois.edu/mse404ela/sp2018/6.DFT-walkthrough.html)
+# 1 Ry/au = 1 Ry/bohr = 25.711 eV/Angstrom
+# 1 Ry/bohr^3 = 0.01089137 eV/Angstrom^3
+
+# PWscf: cohesive energy = eV/atom(crystal) - eV/atom(isolated)
+
+#N 6 1 <- number of atoms/cell
+#C H Mg <- number of atomic types, atom, positions
+## force file generated from file ./out config 1 <- crystal axes * lattice parameter (alat) 
+#X    4.51189000    0.00000000    0.00000000
+#Y    0.00000000    4.51189000    0.00000000
+#Z    0.00000000    0.00000000    3.01572000
+#W 1.000000
+#E -2.9312585467 <- Total energy / total number of atoms (VASP)
+#S -0.02212971 -0.02212971 -0.02313509        0        0        0 <- xx,yy,zz,xy,yz,xz / volume of cell (eV -> eV/volume = eV/Angstrom^3)
+#F
+#0     0.88397     0.88397           0   -0.007831   -0.007831           0
+#0     3.62792     3.62792           0    0.007831    0.007831          -0
+#0     3.13991     1.37198     1.50786   -0.007831    0.007831           0
+#0     1.37198     3.13991     1.50786    0.007831   -0.007831           0
+#1           0           0     1.50786           0           0           0
+#1     2.25595     2.25595           0           0           0           0

@@ -1,0 +1,39 @@
+clear
+# ----- Structure settings ----- 
+units metal
+atom_style atomic
+dimension  3
+boundary   p p p
+read_data  msc30.data
+replicate  1 1 1
+
+mass 1 12.0110 # C
+mass 2  1.0080 # H
+
+# ----- Potential settings ----- 
+pair_style airebo 3.0 1 1
+pair_coeff * * CH.airebo C H
+
+# ----- Relax calculation (0 K) ----- 
+thermo_style custom step etotal temp lx vol press atoms
+thermo 100
+fix f1 all box/relax iso 0.0
+minimize 1.0e-10 0.0 1000 10000
+unfix f1
+
+# output setting
+dump        d1 all cfg 100 cfg/run.*.cfg mass type xs ys zs id type
+dump_modify d1 element C H
+
+velocity all create 10.0 139466 dist gaussian
+fix f1 all nvt temp 10.0 298.0 0.01
+run 1000
+unfix f1
+
+fix f1 all nvt temp 10.0 298.0 0.01
+dump        d2 all custom 1 out.xyz xs ys zs type
+run 0
+
+
+
+

@@ -1,0 +1,105 @@
+#! /bin/csh -f
+#
+echo -n "" > tmp.xyzf
+cp *.*.out tmp.out
+#
+set element_list = (H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Sc Ti V Cr Mn Fe Co Ni Cu Zn Ga Ge As Se Br Kr Rb Sr Y Zr Nb Mo Tc Ru Rh Pd Ag Cd In Sn Sb Te I Xe Cs Ba La Ce Pr Nd Pm Sm Eu Gd Tb Dy Ho Er Tm Yb Lu Hf Ta W Re Os Ir Pt Au Hg Tl Pb Bi Po At Rn Fr Ra Ac Th Pa U Np Pu Am Cm Bk Cf Es Fm Md No Lr Rf Df Sg Bh Hs Mt Ds Rg Cn Nh Fl Mc Lv Ts Og)
+#
+set num_atoms = 0
+set num_atoms_list = `awk '{if($1=="Species" && $3=="atoms"){print $5}}' tmp.out`
+foreach num_atoms_part ($num_atoms_list)
+  set num_atoms = `echo "${num_atoms} + ${num_atoms_part}" | bc -l`
+end
+echo "#N ${num_atoms} 1"
+set num_atom_type = `grep "Specie:" tmp.out | tail -1 | awk '{print $2}'`
+#
+set element = ""
+set count = 1
+foreach atom ($element_list)
+  set num = `grep -c -i "  ${atom}  " tmp.out`
+  if (${num} > 0) then
+    set element = `echo ${element}" "${atom}`
+  endif
+  @ count += 1
+end
+echo "#C ${element}"
+#
+echo "## force file generated from file *.cp.out config 1 "
+set alat = `awk '{if($1==" alat "){printf "%13.8f",$3*0.52917}}' tmp.out`
+set a1 = `awk '{if($1=="a1"){printf " %13.8f %13.8f %13.8f",$3*0.52917,$4*0.52917,$5*0.52917}}' tmp.out`
+echo "#X ${a1}"
+set a2 = `awk '{if($1=="a2"){printf " %13.8f %13.8f %13.8f",$3*0.52917,$4*0.52917,$5*0.52917}}' tmp.out`
+echo "#Y ${a2}"
+set a3 = `awk '{if($1=="a3"){printf " %13.8f %13.8f %13.8f",$3*0.52917,$4*0.52917,$5*0.52917}}' tmp.out`
+echo "#Z ${a3}"
+#
+echo "#W 1.000000"
+#
+set ETOT_eV = `grep "  total energy = " tmp.out | sed 's/.*=//g' |  awk '{printf "%15.10f",$1*13.6058*2}'`
+set TE_ISO = 0.0
+foreach atom (${element})
+  set positions_start_line = `grep -n "ATOMIC_POSITIONS" tmp.out | sed 's/:.*//g' | head -n 1`
+  set num_atom = `awk -v psl=${positions_start_line} -v na=${num_atoms} '(psl<NR && NR<=psl+na){printf "%s \n",$0}' tmp.out | grep -c "  ${atom}  "`
+  set AE_ISO = `awk -v atom=${atom} -v na=${num_atom} '{if($1==atom){printf "%15.10f",$2*na}}' energy_data_for_isolated_atom`
+  set TE_ISO = `echo "${TE_ISO}+${AE_ISO}" | bc -l | awk '{printf "%15.10f",$0}'`
+end
+set coh_eng = `echo "(${ETOT_eV} - ${TE_ISO})/${num_atoms}" | bc -l | awk '{printf "%15.10f",$0}'`
+echo "#E ${coh_eng}"
+#
+set stress_line = `awk '{if($1=="Total" && $2=="stress"){print NR}}' tmp.out`
+set stress_xx = `awk -v sl=${stress_line} 'NR==(sl+1){printf "%12.8f",$1/160.21766208}' tmp.out`
+set stress_xy = `awk -v sl=${stress_line} 'NR==(sl+1){printf "%12.8f",$2/160.21766208}' tmp.out`
+set stress_xz = `awk -v sl=${stress_line} 'NR==(sl+1){printf "%12.8f",$3/160.21766208}' tmp.out`
+set stress_yy = `awk -v sl=${stress_line} 'NR==(sl+2){printf "%12.8f",$2/160.21766208}' tmp.out`
+set stress_yz = `awk -v sl=${stress_line} 'NR==(sl+2){printf "%12.8f",$3/160.21766208}' tmp.out`
+set stress_zz = `awk -v sl=${stress_line} 'NR==(sl+3){printf "%12.8f",$3/160.21766208}' tmp.out`
+echo "#S ${stress_xx} ${stress_yy} ${stress_zz} ${stress_xy} ${stress_yz} ${stress_xz}"
+#
+echo "#F"
+#
+set positions_start_line = `grep -n "ATOMIC_POSITIONS" tmp.out | sed 's/:.*//g' | head -n 1`
+set force_start_line = `grep -n "Forces" tmp.out | sed 's/:.*//g' | head -n 1`
+set i = 1
+while($i <= ${num_atoms})
+  set atom_type = `awk -v fsl=${force_start_line} -v ni=$i 'NR==(fsl+ni){printf "%s \n",$1}' tmp.out`
+  set position = `awk -v psl=${positions_start_line} -v ni=$i -v alat=${alat} 'NR==(psl+ni){printf " %12.8f %12.8f %12.8f \n",$2*0.52917,$3*0.52917,$4*0.52917}' tmp.out`
+  set force = `awk -v fsl=${force_start_line} -v ni=$i 'NR==(fsl+ni){printf " %12.8f %12.8f %12.8f \n",$2/51.421,$3/51.421,$4/51.421}' tmp.out`
+  echo "$atom_type  $position  $force" >> tmp.xyzf
+  @ i = $i + 1
+end
+set i = 0
+foreach atom (${element})
+  awk -v atom=$atom -v ni=$i '{if($1==atom){printf "%d  %12.8f %12.8f %12.8f  %12.8f %12.8f %12.8f \n",ni,$2,$3,$4,$5,$6,$7}}' tmp.xyzf
+  @ i += 1
+end
+rm -f -r tmp.xyzf
+
+# unit
+# PWscf, force: Ry/au, stress: Ry/bohr^3
+#  (force : tprnfor = .true. or relax, md, vc-md)
+#  (stress: tstress = .true. or vc-md, vc-relax)
+# VASP , TOTAL-FORCE: eV/Angstrom, stress: eV
+
+# conversion (http://greif.geo.berkeley.edu/~driver/conversions.html)
+# (https://courses.physics.illinois.edu/mse404ela/sp2018/6.DFT-walkthrough.html)
+# 1 Ry/au = 1 Ry/bohr = 25.711 eV/Angstrom
+# 1 Ry/bohr^3 = 0.01089137 eV/Angstrom^3
+
+# PWscf: cohesive energy = eV/atom(crystal) - eV/atom(isolated)
+
+#N 6 1 <- number of atoms/cell
+#C H Mg <- number of atomic types, atom, positions
+## force file generated from file ./out config 1 <- crystal axes * lattice parameter (alat) 
+#X    4.51189000    0.00000000    0.00000000
+#Y    0.00000000    4.51189000    0.00000000
+#Z    0.00000000    0.00000000    3.01572000
+#W 1.000000
+#E -2.9312585467 <- Total energy / total number of atoms (VASP)
+#S -0.02212971 -0.02212971 -0.02313509        0        0        0 <- xx,yy,zz,xy,yz,xz / volume of cell (eV -> eV/volume = eV/Angstrom^3)
+#F
+#0     0.88397     0.88397           0   -0.007831   -0.007831           0
+#0     3.62792     3.62792           0    0.007831    0.007831          -0
+#0     3.13991     1.37198     1.50786   -0.007831    0.007831           0
+#0     1.37198     3.13991     1.50786    0.007831   -0.007831           0
+#1           0           0     1.50786           0           0           0
+#1     2.25595     2.25595           0           0           0           0

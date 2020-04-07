@@ -1,0 +1,67 @@
+#! /bin/csh -f
+
+set filename = $1
+touch ${filename}.config
+
+rm -f -r ${filename}.config
+rm -f -r ${filename}.pot
+rm -f -r param_file
+
+set cif_list = `ls *.cif`
+foreach cif_name (${cif_list})
+  set cif_folder_name = `echo $cif_name:r`
+  mkdir ${cif_folder_name}
+  cp ${cif_name} ./${cif_folder_name}/${cif_name}
+  cd ./${cif_folder_name}
+  
+  cif2cell -p vasp --vasp-format=5 --vasp-encutfac=1.0 --vasp-pseudo-libdr=$HOME/vasp.5.4.1/potpaw_PBE --vasp-cartesian-lattice-vectors --setup-all -f ${cif_folder_name}.cif --vasp-spin=no
+  
+  mv KPOINTS KPOINTS_backup
+  #sed -i 's/ISPIN = 2/ISPIN = 1/g' INCAR # cif2cell-1.2.39
+  #sed -i '22,23d' INCAR # cif2cell-1.2.39
+  
+  mpirun -np 4 $HOME/vasp*/bin/vasp_std
+  
+  vasp2force -f | tee ${cif_folder_name}.config
+  cp ${cif_folder_name}.config ../${cif_folder_name}.config
+  
+  cd ..
+  cat ${cif_folder_name}.config >> ${filename}.config
+end
+
+if ("$2" == "1") then
+  if ("$3" == "eam") then
+    makeapot -g -n 1 -i eam -f "morse_sc,csw2_sc,bjs" | tee ${filename}.pot
+  else if ("$3" == "adp") then
+    makeapot -g -n 1 -i adp -f "eopp_sc,csw2_sc,bjs,2*csw2_sc" | tee ${filename}.pot
+  #else if ("$3" == "stiweb") then
+  #  makeapot -g -n 1 -i stiweb | tee ${filename}.pot
+  #else if ("$3" == "tersoff") then
+  #  makeapot -g -n 1 -i tersoff | tee ${filename}.pot
+  endif
+else if ("$2" == "2") then
+  if ("$3" == "eam") then
+    makeapot -g -n 2 -i eam -f "3*morse_sc,2*csw2_sc,2*bjs" | tee ${filename}.pot
+  else if ("$3" == "adp") then
+    makeapot -g -n 2 -i adp -f "3*eopp_sc,2*csw2_sc,2*bjs,6*csw2_sc" | tee ${filename}.pot
+  #else if ("$3" == "stiweb") then
+  #  makeapot -g -n 2 -i stiweb | tee ${filename}.pot
+  #else if ("$3" == "tersoff") then
+  #  makeapot -g -n 2 -i tersoff | tee ${filename}.pot
+  endif
+else if ("$2" == "3") then
+  if ("$3" == "eam") then
+    makeapot -g -n 3 -i eam -f "6*morse,3*csw2,3*bjs" | tee ${filename}.pot
+  else if ("$3" == "adp") then
+    makeapot -g -n 3 -i adp -f "6*eopp_sc,3*csw2_sc,3*bjs,12*csw2_sc" | tee ${filename}.pot
+  #else if ("$3" == "stiweb") then
+  #  makeapot -g -n 3 -i stiweb | tee ${filename}.pot
+  #else if ("$3" == "tersoff") then
+  #  makeapot -g -n 3 -i tersoff | tee ${filename}.pot
+  endif
+endif
+
+potfit_setup -c ${filename}.config -p ${filename}.pot -s ${filename} | tee param_file
+$HOME/potfit/util/correct_config ${filename}
+potfit_apot_$3_mkl param_file
+

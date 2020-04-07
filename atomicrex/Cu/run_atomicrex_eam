@@ -1,0 +1,46 @@
+#! /bin/csh -f
+
+cif2cell -p vasp --vasp-format=5 --vasp-encutfac=1.0 --vasp-pseudo-libdr=$HOME/vasp.5.4.1/potpaw_PBE --vasp-cartesian-lattice-vectors --setup-all --no-reduce --supercell="[3,3,3]" -f *.cif
+
+cat << EOF > INCAR
+ISMEAR = 0
+IBRION = 0
+MDALGO = 2
+ISIF = 2
+SMASS = 1.0
+SIGMA = 0.1
+LREAL = Auto
+ALGO = VeryFast
+PREC = Low
+ISYM = 0
+TEBEG = 298
+NSW = 50
+POTIM = 3.0
+NCORE = 2
+EOF
+
+cat << EOF > KPOINTS
+K-Points
+ 0
+Gamma
+ 1 1 1
+ 0 0 0
+EOF
+
+cp POSCAR POSCAR_tmp
+foreach i (0.9 1.0 1.1)
+  sed -e "2 s/1.0/$i/g" POSCAR_tmp > POSCAR
+  #
+  mpirun -np 4 $HOME/vasp*/bin/vasp_std
+  #
+  ./vasp2atomicrex POSCAR_res_POSCAR_$i.traj_forces
+end
+cp POSCAR_tmp POSCAR
+rm -f -r POSCAR_tmp
+
+$HOME/atomicrex/build/atomicrex main.xml
+
+
+
+
+

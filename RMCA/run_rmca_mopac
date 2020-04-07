@@ -1,0 +1,15 @@
+#! /bin/csh -f
+
+mkdir cfg
+
+set No = 1
+set MaxNo = $2
+while ($No <= $MaxNo)
+
+  printf $1 | ./rmca_linux
+  ./cfg2lmp $1
+  /opt/mopac/MOPAC2016.exe $1.mop
+  ./lmp2mop $1
+  
+  @ No = $No + 1
+end

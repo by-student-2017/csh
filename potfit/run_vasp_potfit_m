@@ -1,0 +1,90 @@
+#! /bin/csh -f
+
+set filename = $1
+set total_num_elements = $2
+set potential_type = $3
+set max_num_move = $4
+set x = $5
+set cif2cell_other_option = $6
+
+echo -n "" > ${filename}.config
+echo -n "" > ${filename}.pot
+echo -n "" > param_file
+
+set cif_list = `ls *.cif`
+foreach cif_name (${cif_list})
+  
+  set cif_folder_name = `echo $cif_name:r`
+  cif2cell -p vasp --vasp-format=5 --vasp-encutfac=1.0 --vasp-pseudo-libdr=$HOME/vasp.5.4.1/potpaw_PBE --vasp-cartesian-lattice-vectors --setup-all -f ${cif_folder_name}.cif --supercell="[$x,$x,$x]" --vasp-spin=no ${cif2cell_other_option}
+  #sed -i 's/ISPIN = 2/ISPIN = 1/g' INCAR # cif2cell-1.2.39
+  #sed -i '22,23d' INCAR # cif2cell-1.2.39
+
+  set i = 1
+  while($i <= ${max_num_move})  
+    set scale = `echo "0.98 + 0.02/((${max_num_move}+1)/2)*$i" | bc -l | awk '{printf "%5.3f",$0}'`
+    foreach vector (a b c)
+      rm -f -r ${cif_folder_name}_${vector}${scale}
+      mkdir ${cif_folder_name}_${vector}${scale}
+      cp ${cif_name} ./${cif_folder_name}_${vector}${scale}/${cif_name}
+      cd ./${cif_folder_name}_${vector}${scale}
+
+      cp ../INCAR   INCAR
+      cp ../KPOINTS KPOINTS_backup
+      cp ../POTCAR  POTCAR
+      cp ../POSCAR  POSCAR_tmp
+
+      if ("${vector}" == "a") then
+        awk -v scale=${scale} '{if(NR==3){printf " %19.15f %19.15f %19.15f \n", $1*scale, $2*scale, $3*scale}else{printf "%s \n", $0}}' POSCAR_tmp > POSCAR
+      else if ("${vector}" == "b") then
+        awk -v scale=${scale} '{if(NR==4){printf " %19.15f %19.15f %19.15f \n", $1*scale, $2*scale, $3*scale}else{printf "%s \n", $0}}' POSCAR_tmp > POSCAR
+      else if ("${vector}" == "c") then
+        awk -v scale=${scale} '{if(NR==5){printf " %19.15f %19.15f %19.15f \n", $1*scale, $2*scale, $3*scale}else{printf "%s \n", $0}}' POSCAR_tmp > POSCAR
+      endif
+  
+      mpirun -np 1 $HOME/vasp*/bin/vasp_std
+
+      vasp2force -f | tee ${cif_folder_name}_${vector}${scale}.config
+      cat ${cif_folder_name}_${vector}${scale}.config >> ../${filename}.config
+  
+      cd ..
+    end
+    @ i = $i + 1
+  end
+end
+
+if ("${total_num_elements}" == "1") then
+  if ("${potential_type}" == "eam") then
+    makeapot -g -n 1 -i eam -f "morse_sc,csw2_sc,bjs" | tee ${filename}.pot
+  else if ("${potential_type}" == "adp") then
+    makeapot -g -n 1 -i adp -f "eopp_sc,csw2_sc,bjs,2*csw2_sc" | tee ${filename}.pot
+  #else if ("${potential_type}" == "stiweb") then
+  #  makeapot -g -n 1 -i stiweb | tee ${filename}.pot
+  #else if ("${potential_type}" == "tersoff") then
+  #  makeapot -g -n 1 -i tersoff | tee ${filename}.pot
+  endif
+else if ("${total_num_elements}" == "2") then
+  if ("${potential_type}" == "eam") then
+    makeapot -g -n 2 -i eam -f "3*morse_sc,2*csw2_sc,2*bjs" | tee ${filename}.pot
+  else if ("${potential_type}" == "adp") then
+    makeapot -g -n 2 -i adp -f "3*eopp_sc,2*csw2_sc,2*bjs,6*csw2_sc" | tee ${filename}.pot
+  #else if ("${potential_type}" == "stiweb") then
+  #  makeapot -g -n 2 -i stiweb | tee ${filename}.pot
+  #else if ("${potential_type}" == "tersoff") then
+  #  makeapot -g -n 2 -i tersoff | tee ${filename}.pot
+  endif
+else if ("${total_num_elements}" == "3") then
+  if ("${potential_type}" == "eam") then
+    makeapot -g -n 3 -i eam -f "6*morse,3*csw2,3*bjs" | tee ${filename}.pot
+  else if ("${potential_type}" == "adp") then
+    makeapot -g -n 3 -i adp -f "6*eopp_sc,3*csw2_sc,3*bjs,12*csw2_sc" | tee ${filename}.pot
+  #else if ("${potential_type}" == "stiweb") then
+  #  makeapot -g -n 3 -i stiweb | tee ${filename}.pot
+  #else if ("${potential_type}" == "tersoff") then
+  #  makeapot -g -n 3 -i tersoff | tee ${filename}.pot
+  endif
+endif
+
+potfit_setup -c ${filename}.config -p ${filename}.pot -s ${filename} | tee param_file
+$HOME/potfit/util/correct_config ${filename}
+potfit_apot_${potential_type}_mkl param_file
+

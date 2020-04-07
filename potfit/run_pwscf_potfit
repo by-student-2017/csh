@@ -1,0 +1,47 @@
+#! /bin/csh -f
+
+set cif_list = `ls *.cif`
+foreach cif_name (${cif_list})
+  
+  set cif_folder_name = `echo $cif_name:r`
+  echo -n "" > ${cif_folder_name}-DFT
+  
+  set i = 1
+  while($i <= $1)
+    set scale = `echo "0.98 + 0.02/(($1+1)/2)*$i" | bc -l | awk '{printf "%5.3f",$0}'`
+    rm -f -r ${cif_folder_name}_${scale}
+    mkdir ${cif_folder_name}_${scale}
+    cd ./${cif_folder_name}_${scale}
+    cp ../${cif_name} ./
+    cif2cell -p pwscf --pwscf-pseudo-PSLibrary-libdr=$HOME/PSLibrary --pwscf-bin-dir=$HOME/q-e-qe-\*/bin --setup-all --k-resolution=0.48 --pwscf-spin=no --pwscf-run-type=scf -f ${cif_name}
+
+    sed -i '2i tstress = .true. ,' ${cif_folder_name}.scf.in
+    sed -i '2i tprnfor = .true. ,' ${cif_folder_name}.scf.in
+
+    cp ${cif_folder_name}.scf.in tmp.scf.in
+    
+    set A_line = `grep -n "A =" tmp.scf.in | sed -e 's/:.*//g'`
+    set A = `awk -v A_line=${A_line} 'NR==A_line{printf "%9.5f",$3}' tmp.scf.in`
+    awk -v A_line=${A_line} -v scale=${scale} '{if(NR==A_line){printf "   A = %9.5f \n",$3*scale}else{printf "%s \n",$0}}' tmp.scf.in > ${cif_folder_name}.scf.in
+    #set cell_param_line = `grep -n "CELL_PARAMETERS" tmp.scf.in | sed -e 's/:.*//g'`
+    #awk -v cpl=${cell_param_line} -v scale=${scale} '{if(cpl<NR && NR<cpl+4){printf " %19.15f %19.15f %19.15f \n",$1*scale,$2*scale,$3*scale}else{printf "%s \n",$0}}' > ${cif_folder_name}.scf.in
+    set LA = `echo "${A}*${scale}*0.52918" | bc -l | awk '{printf "%15.10f",$0}'`
+
+    mpirun -np 2 $HOME/q-e-qe-*/bin/pw.x < ${cif_folder_name}.scf.in | tee ${cif_folder_name}.scf.out
+
+    $HOME/potfit/util/pwscf2force | tee ${cif_folder_name}.config
+    cp ${cif_folder_name}.config ../${cif_folder_name}.config
+
+    #set TOTEN_Ry = `grep "  total energy  " ${cif_folder_name}.scf.out | tail -1 | sed 's/.*=//g' | sed 's/Ry//g'`
+    #set TOTEN = `echo "${TOTEN_Ry}*13.6058" | bc -l | awk '{printf "%15.10f",$0}'`
+
+    cd ..
+    #echo "${LA} ${TOTEN}" >> ${cif_folder_name}-DFT
+    cat ${cif_folder_name}.config >> ${filename}.config
+    @ i = $i + 1
+  end
+  #echo "----------"
+  #echo ${cif_folder_name}-DFT
+  #echo "lattice constant A (Angstrom) | total energy (eV)"
+  #cat ${cif_folder_name}-DFT
+end

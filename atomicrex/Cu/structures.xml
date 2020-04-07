@@ -1,0 +1,64 @@
+<group>
+
+  <fcc-lattice id='FCC'>
+    <atom-type>Cu</atom-type>
+    <lattice-parameter>3.615</lattice-parameter>
+    <properties>
+      <atomic-energy target='-3.540'/>
+      <lattice-parameter target='3.615'/>
+      <bulk-modulus/>
+      <C11 target='170.0'/>
+      <C12 target='122.5'/>
+      <C44 target= '75.8'/>
+    </properties>
+  </fcc-lattice>
+
+  <bcc-lattice id='BCC'>
+    <atom-type>Cu</atom-type>
+    <lattice-parameter>2.8</lattice-parameter>
+    <properties>
+      <atomic-energy target='-3.496'/>
+      <lattice-parameter/>
+    </properties>
+  </bcc-lattice>
+
+  <diamond-lattice id='DIA'>
+    <atom-type>Cu</atom-type>
+    <lattice-parameter>4.0</lattice-parameter>
+    <properties>
+      <atomic-energy target='-2.293'/>
+      <lattice-parameter min='3.0'/>
+    </properties>
+  </diamond-lattice>	
+
+  <sc-lattice id='SC'>
+    <atom-type>Cu</atom-type>
+    <lattice-parameter>2.3</lattice-parameter>
+    <properties>
+      <atomic-energy target='-2.996'/>
+      <lattice-parameter/>
+    </properties>
+  </sc-lattice>	
+
+  <user-structure id='structure_1'>
+    <poscar-file>POSCAR_res_POSCAR_0.9.traj_forces</poscar-file>
+    <properties>
+      <atomic-forces fit='true' output-all='true'/>
+    </properties>
+  </user-structure>
+  
+  <user-structure id='structure_2'>
+    <poscar-file>POSCAR_res_POSCAR_1.0.traj_forces</poscar-file>
+    <properties>
+      <atomic-forces fit='true' output-all='true'/>
+    </properties>
+  </user-structure>
+  
+  <user-structure id='structure_3'>
+    <poscar-file>POSCAR_res_POSCAR_1.1.traj_forces</poscar-file>
+    <properties>
+      <atomic-forces fit='true' output-all='true'/>
+    </properties>
+  </user-structure>
+
+</group>

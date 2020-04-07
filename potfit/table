@@ -1,0 +1,7 @@
+| Structure(cif) | XxYxZ | W | Tmin | Tmax | NT | Vmax(%) | NV(odd) | wiht force | Ncp | eDFT |
+-----------------------------------------------------------------------------------------------
+Configurations with attributed forces (CP (Ncp cycle), then MD calculation)
+fcc_Al_7.cif       2 1 1   1    300    300    1      6         1        1           2      1
+ 
+Configurations without attributed forces (SCF calculation)
+fcc_Al_15.cif      2 2 2  15      0      0    1      6         1        0           0      0

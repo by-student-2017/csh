@@ -1,0 +1,63 @@
+#! /bin/csh -f
+set filename = $1
+cat ${filename}.out | tac | sed '/UNIT CELL TRANSLATION VECTORS/q' | tac > tmp.out
+#
+echo " (Version 3 format configuration file)" > tmp.cfg
+echo " M    " >> tmp.cfg
+echo " " >> tmp.cfg
+echo "          0         0         0 moves generated, tried, accepted" >> tmp.cfg
+echo "          0                     configurations saved" >> tmp.cfg
+echo " " >> tmp.cfg
+awk  '{if($7=="atoms"){printf "       %d molecules (of all types) \n",$6}}' tmp.out >> tmp.cfg
+#
+set rev_element_list = (Og Ts Lv Mc Fl Nh Cn Rg Ds Mt Hs Bh Sg Df Rf Lr No Md Fm Es Cf Bk Cm Am Pu Np U Pa Th Ac Ra Fr Rn At Po Bi Pb Tl Hg Au Pt Ir Os Re W Ta Hf Lu Yb Tm Er Ho Dy Tb Gd Eu Sm Pm Nd Pr Ce La Ba Cs Xe I Te Sb Sn In Cd Ag Pd Rh Ru Tc Mo Nb Zr Y Sr Rb Kr Br Se As Ge Ga Zn Cu Ni Co Fe Mn Cr V Ti Sc Ca K Ar Cl S P Si Al Mg Na Ne F O N C B Be Li He H)
+#
+set read_start = `grep -n "CARTESIAN COORDINATES" tmp.out | sed -e 's/:.*//g'`
+set read_end   = `grep -n "Empirical Formula:" tmp.out | sed -e 's/:.*//g'`
+set total_atoms = `awk '{if($1=="Empirical" && $2=="Formula:"){print $6}}' tmp.out`
+#
+set count = 0
+set total_atoms_list = ""
+set atom_symbol = ""
+foreach atom (${rev_element_list})
+  set num = `awk -v rs=${read_start} -v ndata=${total_atoms} '{if(NR>=rs+4 && NR<=rs+4+ndata){print $2}}' tmp.out | grep -c -i ${atom}`
+  if (${num} > 0) then
+    set atom_symbol = `echo "${atom_symbol} ${atom}"`
+    set total_atoms_list = `echo "${total_atoms_list} ${num}"`
+    @ count += 1
+  endif
+end
+#
+echo "          ${count} types of molecule"  >> tmp.cfg
+echo "          1 is the largest number of atoms in a molecule"  >> tmp.cfg
+echo "          0 Euler angles are provided"  >> tmp.cfg
+echo " " >> tmp.cfg
+echo "          F (Box is not truncated octahedral)" >> tmp.cfg
+echo "            Defining vectors are:" >> tmp.cfg
+awk -v n=0.5 'NR==4{printf "              %10.6f     0.000000   0.000000  \n",($3)*n}' tmp.out >> tmp.cfg
+awk -v n=0.5 'NR==5{printf "               0.000000  %10.6f     0.000000  \n",($4)*n}' tmp.out >> tmp.cfg
+awk -v n=0.5 'NR==6{printf "               0.000000   0.000000 %10.6f \n",($5)*n}' tmp.out >> tmp.cfg
+#
+set a = `awk 'NR==4{print $3}' tmp.out`
+echo "a lattice constant:" ${a}
+set b = `awk 'NR==5{print $4}' tmp.out`
+echo "b lattice constant:" ${b}
+set c = `awk 'NR==6{print $5}' tmp.out`
+echo "c lattice constant:" ${c}
+#
+set count = 0
+foreach i (${total_atoms_list})
+  @ count += 1
+  echo " " >> tmp.cfg
+  echo "      $i molecules of type  ${count}" >> tmp.cfg
+  echo "          1 atomic sites" >> tmp.cfg
+  echo "              0.000000   0.000000   0.000000" >> tmp.cfg
+end
+#
+echo " " >> tmp.cfg
+foreach atom (${atom_symbol})
+  awk -v atomic_symbol=${atom} -v n=2 -v a=${a} -v b=${b} -v c=${c} '(NR>=12 && $2==atomic_symbol){printf "%12.6f %12.6f %12.6f \n",($3/a-0.5)*n,($4/b-0.5)*n,($5/c-0.5)*n}' tmp.out >> tmp.cfg
+end
+#
+mv tmp.cfg ${filename}.cfg
+rm -f -r tmp.out

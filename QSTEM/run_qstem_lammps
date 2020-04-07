@@ -1,0 +1,19 @@
+#! /bin/csh -f
+
+set filename = $1
+set No = 1
+set MaxNo = $2
+while ($No <= $MaxNo)
+
+  ./lmp_cfg2cfg_qsc ${filename} -kv 80 -lab6
+  cp case.cfg tmp.cfg
+  python fit_tem.py
+  ./cfg_qsc2lmp_data ${filename}
+  rm -f -r cfg
+  rm -f -r ${filename}.*.cfg
+  mkdir cfg
+  lammps < in.lmp
+  cp `find case.*.cfg | tail -1` ../${filename}.cfg
+  
+  @ No = $No + 1
+end

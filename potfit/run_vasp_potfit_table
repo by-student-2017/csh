@@ -1,0 +1,183 @@
+#! /bin/csh -f
+
+set num_core_vasp = 4
+set ncore_vasp = `echo ${num_core_vasp} | awk '{printf "%d",sqrt($0)}'`
+set num_core_potfit = 0 # less than number of data in config. 0: auto 
+
+set filename = $1
+set potential_type = $2
+set kpoint_flag = $3
+
+echo -n "" > ${filename}.config
+echo -n "" > ${filename}.pot
+echo -n "" > param_file
+
+cat << EOF > INCAR_MD
+ISMEAR = 0
+IBRION = 0
+MDALGO = 2
+ISIF = 2
+SMASS = 1.0
+SIGMA = 0.1
+LREAL = Auto
+ALGO = VeryFast
+PREC = Low
+ISYM = 0
+TEBEG = 300.0
+NSW = 50
+POTIM = 3.0
+NCORE = ${ncore_vasp}
+EOF
+
+cat << EOF > KPOINTS_1k
+K-Points
+ 0
+Gamma
+ 1 1 1
+ 0 0 0
+EOF
+
+echo "| Structure | Nc | Nat | W | Tmin-Tmax | Vmin-Vmax |" > output_table
+echo "----------------------------------------------------" >> output_table
+echo "Configurations with attributed forces (MD calculation)" >> output_table
+set SCF_flag = 0
+
+set num_data = 0
+set cif_list = `grep "\.cif" table | sed "s/.cif.*//g"`
+foreach cif_name_pre (${cif_list})
+  # table data
+  set cif_name = ${cif_name_pre}.cif
+  set x      = `grep ${cif_name} table | awk '{printf "%d",$2}'`
+  set y      = `grep ${cif_name} table | awk '{printf "%d",$3}'`
+  set z      = `grep ${cif_name} table | awk '{printf "%d",$4}'`
+  set weight = `grep ${cif_name} table | awk '{printf "%d",$5}'`
+  set Tmin   = `grep ${cif_name} table | awk '{printf "%7.2f",$6}'`
+  set Tmax   = `grep ${cif_name} table | awk '{printf "%7.2f",$7}'` 
+  set NT     = `grep ${cif_name} table | awk '{printf "%1d",$8}'` 
+  set Vmax   = `grep ${cif_name} table | awk '{printf "%8.5f",($9/100)*(1/3)}'`
+  set NV     = `grep ${cif_name} table | awk '{printf "%d",$10}'`
+  set F_flag = `grep ${cif_name} table | awk '{printf "%d",$11}'`
+  #
+  set num_data = `echo "${num_data}+${NT}*${NV}" | bc`
+  #
+  set cif_folder_name = `echo $cif_name:r`
+  cif2cell -p vasp --vasp-format=5 --vasp-encutfac=1.0 --vasp-pseudo-libdr=$HOME/vasp.5.4.1/potpaw_PBE --vasp-cartesian-lattice-vectors --setup-all -f ${cif_folder_name}.cif --no-reduce --supercell="[$x,$y,$z]"
+
+  set i = 1
+  while($i <= ${NV})
+    set scale = `echo "1.00 - ${Vmax}  + ${Vmax}/((${NV}+1)/2)*$i" | bc -l | awk '{printf "%5.3f",$0}'` 
+    set j = 1
+    while($j <= ${NT}) 
+      set temp = `echo "${Tmin} + (${Tmax}-${Tmin})/${NT}*($j-1)" | bc -l | awk '{printf "%7.2f",$0}'`
+      rm -f -r ${cif_folder_name}_L${scale}_${temp}K
+      mkdir ${cif_folder_name}_L${scale}_${temp}K
+      cp ${cif_name} ./${cif_folder_name}_L${scale}_${temp}K/${cif_name}
+      cd ./${cif_folder_name}_L${scale}_${temp}K
+
+      if (${F_flag} == 1) then
+        cp ../INCAR_MD ./INCAR
+        sed -i "s/300.0/${temp}/g" INCAR
+      else
+        cp ../INCAR ./INCAR
+      endif
+      if (${kpoint_flag} == 1) then
+        cp ../KPOINTS_1k  KPOINTS
+      else 
+        cp ../KPOINTS  KPOINTS_backup
+      endif
+      cp ../POTCAR   POTCAR
+      cp ../POSCAR   POSCAR_tmp
+      awk -v scale=${scale} '{if(NR==2){printf " %19.15f \n",$1*scale}else{printf "%s \n", $0}}' POSCAR_tmp > POSCAR
+    
+      mpirun -np ${num_core_vasp} $HOME/vasp*/bin/vasp_std
+
+      vasp2force -f -w ${weight} | tee ${cif_folder_name}_L${scale}_${temp}K.config
+      if (${F_flag} == 1) then
+        awk '{if(NR==1){printf "#N %d 1 \n",$2}else{printf "%s \n",$0}}'  ${cif_folder_name}_L${scale}_${temp}K.config > new_${cif_folder_name}_L${scale}_${temp}K.config
+      else
+        awk '{if(NR==1){printf "#N %d 0 \n",$2}else{printf "%s \n",$0}}'  ${cif_folder_name}_L${scale}_${temp}K.config > new_${cif_folder_name}_L${scale}_${temp}K.config
+      endif
+      mv new_${cif_folder_name}_L${scale}_${temp}K.config ${cif_folder_name}_L${scale}_${temp}K.config
+      cat ${cif_folder_name}_L${scale}_${temp}K.config >> ../${filename}.config
+    
+      cd ..
+      @ j = $j + 1
+    end
+    #
+    if ($i == 1) then
+      set Vmin = `awk '{if($1=="volume/ion"){printf "%4.1f \n",$5}}' ./${cif_folder_name}_L${scale}_${temp}K/OUTCAR`
+    endif
+    if ($i == ${NV}) then
+      set Vmax = `awk '{if($1=="volume/ion"){printf "%4.1f \n",$5}}' ./${cif_folder_name}_L${scale}_${temp}K/OUTCAR`
+    endif
+    #
+    @ i = $i + 1
+  end
+  #
+  if ($SCF_flag == 0 && $F_flag == 0) then
+    echo " " >> output_table
+    echo "Configurations without attributed forces (SCF calculation)" >> output_table
+    set SCF_flag = 1
+  endif
+  set Nc = `echo "${NT} * ${NV}" | bc`
+  set Nat = `grep "<atoms>" ./${cif_folder_name}_L${scale}_${temp}K/vasprun.xml | awk '{printf "%d \n",$2}'`
+  echo "${cif_name}   ${Nc}  ${Nat}   ${weight}   ${Tmin}-${Tmax}   ${Vmin}-${Vmax}" >> output_table
+  #
+end
+
+$HOME/potfit/util/correct_config ${filename}
+set arr = `sed -n 2p ${filename}.config | sed "s/#C //g" | sed 's/\s*$//'`
+set array = `echo "($arr)"`
+set total_num_elements = `echo $#array`
+echo ${total_num_elements}
+#set new_filename = `echo ${arr} | sed "s/ /-/g"`
+
+if ("${total_num_elements}" == "1") then
+  if ("${potential_type}" == "eam") then
+    makeapot -g -n 1 -i eam -f "morse_sc,csw2_sc,bjs" | tee ${filename}.pot
+  else if ("${potential_type}" == "adp") then
+    makeapot -g -n 1 -i adp -f "eopp_sc,csw2_sc,bjs,2*csw2_sc" | tee ${filename}.pot
+  #else if ("${potential_type}" == "stiweb") then
+  #  makeapot -g -n 1 -i stiweb | tee ${filename}.pot
+  #else if ("${potential_type}" == "tersoff") then
+  #  makeapot -g -n 1 -i tersoff | tee ${filename}.pot
+  endif
+else if ("${total_num_elements}" == "2") then
+  if ("${potential_type}" == "eam") then
+    makeapot -g -n 2 -i eam -f "3*morse_sc,2*csw2_sc,2*bjs" | tee ${filename}.pot
+  else if ("${potential_type}" == "adp") then
+    makeapot -g -n 2 -i adp -f "3*eopp_sc,2*csw2_sc,2*bjs,6*csw2_sc" | tee ${filename}.pot
+  #else if ("${potential_type}" == "stiweb") then
+  #  makeapot -g -n 2 -i stiweb | tee ${filename}.pot
+  #else if ("${potential_type}" == "tersoff") then
+  #  makeapot -g -n 2 -i tersoff | tee ${filename}.pot
+  endif
+else if ("${total_num_elements}" == "3") then
+  if ("${potential_type}" == "eam") then
+    makeapot -g -n 3 -i eam -f "6*morse,3*csw2,3*bjs" | tee ${filename}.pot
+  else if ("${potential_type}" == "adp") then
+    makeapot -g -n 3 -i adp -f "6*eopp_sc,3*csw2_sc,3*bjs,12*csw2_sc" | tee ${filename}.pot
+  #else if ("${potential_type}" == "stiweb") then
+  #  makeapot -g -n 3 -i stiweb | tee ${filename}.pot
+  #else if ("${potential_type}" == "tersoff") then
+  #  makeapot -g -n 3 -i tersoff | tee ${filename}.pot
+  endif
+endif
+
+potfit_setup -c ${filename}.config -p ${filename}.pot -s ${filename} | tee param_file
+if ("${num_core_potfit}" == "0") then
+  set i = 1
+  while($i <= $num_core_vasp)
+    set mod = `echo "${num_data} % $i" | bc`
+    if("$mod" == "0") then
+      set num_core_potfit = $i
+    endif
+  @ i = $i + 1
+  end
+endif
+if ("${num_core_potfit}" == "1") then
+  potfit_apot_${potential_type}_mkl_stress param_file
+else
+  mpirun -np ${num_core_potfit} potfit_apot_${potential_type}_mkl_mpi_stress param_file
+endif
+

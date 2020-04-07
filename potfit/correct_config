@@ -1,0 +1,60 @@
+#! /bin/csh -f
+
+set filename = $1
+cp ${filename}.config tmp.config
+cp ${filename}.config ${filename}_origin.config 
+#
+set C_Line_list = `awk '{if($1=="#C"){print NR}}' tmp.config`
+#
+set old_len = 1
+foreach C_Line (${C_Line_list})
+  echo "#C Line: "${C_Line}
+  set new_len = `awk -v cl=${C_Line} '{if(NR==cl){print length($0)}}' tmp.config`
+  if ($new_len > $old_len) then
+    @ old_len = $new_len
+    set ref_C_Line = ${C_Line}
+  endif
+end
+set ref_c = `awk -v rcl=${ref_C_Line} '{if(NR==rcl){print $0}}' tmp.config`
+echo "Setting #C data: "${ref_c}
+set end_line_plus2 = `awk 'END{print NR+2}' tmp.config`
+set new_C_Line_list = `echo "${C_Line_list} ${end_line_plus2}"`
+#
+cp tmp.config new_tmp.config
+set count = 1
+set nex_count = 2
+foreach C_Line (${C_Line_list})
+  set new_c = `awk -v cl=${C_Line} '{if(NR==cl){print $0}}' tmp.config`
+  echo "--------------------"
+  echo "Line: "$C_Line
+  if ("$new_c" != "$ref_c") then
+    set num_position = `awk -v cl=${C_Line} '{if(NR==cl-1){printf "%d",$2}}' tmp.config`
+    echo "number of position: "${num_position}
+    set i = -1
+    foreach ref_element ($ref_c)
+      set j = -1
+      foreach element ($new_c)
+        if ("$ref_element" == "$element" && "$ref_element" != "#C") then
+          echo $element": old: "$j", new: "$i
+          @ next_count = $count + 1
+          awk -v np=${num_position} -v el=$new_C_Line_list[$next_count] -v nj=$j -v ni=$i '{if((el-2-np)<NR && NR <=(el-2) && $1==nj){printf "Newnum%-d  %11.5f %11.5f %11.5f  %11.5f %11.5f %11.5f\n",ni,$2,$3,$4,$5,$6,$7}else{print $0}}' tmp.config > new_tmp.config
+        endif
+        cp new_tmp.config tmp.config
+        @ j = $j + 1
+      end
+      @ i = $i + 1
+    end
+  endif
+  @ count = $count + 1
+end
+#
+foreach C_Line (${C_Line_list})
+  awk -v cl=${C_Line} -v refc="${ref_c}" '{if(NR==cl){printf "%s\n",refc}else{print $0}}' tmp.config > new_tmp.config
+  cp new_tmp.config tmp.config
+end
+#
+sed -i "s/Newnum//g" tmp.config
+mv tmp.config ${filename}.config
+#
+rm -f -r new_tmp.config
+

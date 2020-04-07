@@ -1,0 +1,34 @@
+#! /bin/csh -f
+set filename = $1
+cp ${filename}.cfg tmp.cfg
+echo "title: ${filename}.cfg " > tmp.data
+echo " " >> tmp.data
+awk -v n=1 'NR==7{printf "%d atoms \n",($1)*n}' tmp.cfg >> tmp.data
+#echo "2 atom types"  >> tmp.data
+echo " " >> tmp.data
+awk -v n=2 'NR==14{printf "0.0 %10.6f xlo xhi \n",($1)*n}' tmp.cfg >> tmp.data
+awk -v n=2 'NR==15{printf "0.0 %10.6f ylo yhi \n",($2)*n}' tmp.cfg >> tmp.data
+awk -v n=2 'NR==16{printf "0.0 %10.6f zlo zhi \n",($3)*n}' tmp.cfg >> tmp.data
+echo " " >> tmp.data
+echo "Atoms " >> tmp.data
+echo " " >> tmp.data
+set a_half_lattice = `awk 'NR==14{print $1}' tmp.cfg`
+echo "a lattice * 0.5:" ${a_half_lattice}
+#
+set total_atoms = `awk 'NR==7{print $1}' tmp.cfg`
+set count = 0
+set natom_remain = ${total_atoms}
+set read_start = 0
+while (${natom_remain} > 0)
+  @ count += 1
+  set num_elem = `awk -v n=${count} 'NR==(14+n*4){print $1}' tmp.cfg`
+  set natom_remain = `echo "${natom_remain} - ${num_elem}" | bc`
+  awk -v n=${a_half_lattice} -v rs=${read_start} -v natom=${num_elem} -v no=${count} '(NR>=26+rs && NR<natom+26+rs){printf "%d %d %12.6f %12.6f %12.6f \n",(NR-25),no,($1+1)*n,($2+1)*n,($3+1)*n}' tmp.cfg >> tmp.data
+  set read_start = `echo "${read_start} + ${num_elem}" | bc`
+end
+#
+sed -i "3a\ ${count} atom types" tmp.data
+#
+mv tmp.data ${filename}.data
+rm -f -r tmp.cfg
+

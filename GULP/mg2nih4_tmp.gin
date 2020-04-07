@@ -1,0 +1,77 @@
+opti conp #prop phon inten noden dispersion
+cell
+14.40202 6.41312 6.50056 90.0 113.4519 90.0
+frac
+Mg1 core  0.234204   0.015970   0.411120  XXX0
+Mg2 core  0.000000   0.028663   0.750000  XXX0
+Mg3 core  0.000000   0.468702   0.250000  XXX0
+Ni1 core  0.120511   0.227824   0.576894  XXX1
+H1  core  0.013040   0.292296   0.559006  XXX2
+H1  shel  0.013040   0.292296   0.559006  XXX3
+H2  core  0.124405   0.012577   0.066741  XXX2
+H2  shel  0.124405   0.012577   0.066741  XXX3
+H3  core  0.139242   0.323081   0.377111  XXX2
+H3  shel  0.139242   0.323081   0.377111  XXX3
+H4  core  0.209100   0.301371   0.800247  XXX2
+H4  shel  0.209100   0.301371   0.800247  XXX3
+space
+15
+buck
+H1 shel Mg1 core XXX4 XXX7  XX10 0.0 12.800
+H1 core Mg1 core XXX4 XXX7  XX10 0.0 12.800
+H1 shel Mg2 core XXX4 XXX7  XX10 0.0 12.800
+H1 core Mg2 core XXX4 XXX7  XX10 0.0 12.800
+H1 shel Mg3 core XXX4 XXX7  XX10 0.0 12.800
+H1 core Mg3 core XXX4 XXX7  XX10 0.0 12.800
+buck
+H2 shel Mg1 core XXX4 XXX7  XX10 0.0 12.800
+H2 core Mg1 core XXX4 XXX7  XX10 0.0 12.800
+H2 shel Mg2 core XXX4 XXX7  XX10 0.0 12.800
+H2 core Mg2 core XXX4 XXX7  XX10 0.0 12.800
+H2 shel Mg3 core XXX4 XXX7  XX10 0.0 12.800
+H2 core Mg3 core XXX4 XXX7  XX10 0.0 12.800
+buck
+H3 shel Mg1 core XXX4 XXX7  XX10 0.0 12.800
+H3 core Mg1 core XXX4 XXX7  XX10 0.0 12.800
+H3 shel Mg2 core XXX4 XXX7  XX10 0.0 12.800
+H3 core Mg2 core XXX4 XXX7  XX10 0.0 12.800
+H3 shel Mg3 core XXX4 XXX7  XX10 0.0 12.800
+H3 core Mg3 core XXX4 XXX7  XX10 0.0 12.800
+buck
+H4 shel Mg1 core XXX4 XXX7  XX10 0.0 12.800
+H4 core Mg1 core XXX4 XXX7  XX10 0.0 12.800
+H4 shel Mg2 core XXX4 XXX7  XX10 0.0 12.800
+H4 core Mg2 core XXX4 XXX7  XX10 0.0 12.800
+H4 shel Mg3 core XXX4 XXX7  XX10 0.0 12.800
+H4 core Mg3 core XXX4 XXX7  XX10 0.0 12.800
+buck
+H1 shel Ni1 core XXX5 XXX8  XX11 0.0 12.800
+H1 core Ni1 core XXX5 XXX8  XX11 0.0 12.800
+H2 shel Ni1 core XXX5 XXX8  XX11 0.0 12.800
+H2 core Ni1 core XXX5 XXX8  XX11 0.0 12.800
+H3 shel Ni1 core XXX5 XXX8  XX11 0.0 12.800
+H3 core Ni1 core XXX5 XXX8  XX11 0.0 12.800
+H4 shel Ni1 core XXX5 XXX8  XX11 0.0 12.800
+H4 core Ni1 core XXX5 XXX8  XX11 0.0 12.800
+buck
+H1 shel H1  shel XXX6 XXX9  XX12 0.0 12.800
+H2 shel H2  shel XXX6 XXX9  XX12 0.0 12.800
+H3 shel H3  shel XXX6 XXX9  XX12 0.0 12.800
+H4 shel H4  shel XXX6 XXX9  XX12 0.0 12.800
+spring
+H1  XX13 0
+H2  XX13 0
+H3  XX13 0
+H4  XX13 0
+Ni1 999999.0 0
+Mg1 999999.0 0
+Mg2 999999.0 0
+Mg3 999999.0 0
+#shrink
+#4 4 4
+#kpoints
+#8 8 8
+#dispersion 1 500
+#0.0 0.0 0.0 to 0.0 0.5 0.0 to 0.5 0.5 0.0 to 0.0 0.0 0.0 to 0.0 0.0 0.5
+#0.0 0.0 0.0 to 0.0 0.0 0.5 to 0.0 0.5 0.5 to 0.5 0.5 0.5
+#output phon mgh2

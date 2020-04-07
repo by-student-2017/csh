@@ -1,0 +1,135 @@
+<eam id="elemental EAM potential" species-a="*" species-b="*">
+
+  <mapping>
+    <pair-interaction species-a="*" species-b="*" function="V" />
+    <electron-density species-a="*" species-b="*" function="rho" />
+    <embedding-energy species="*" function="F" />			
+  </mapping>
+  <export-eam-file>Cu.eam.fs</export-eam-file>
+  <functions>
+
+    <sum id="V">
+      <user-function id="V_term1">
+	<input-var>r</input-var>
+	<expression>
+	  ( E1 * (exp(-2 * alpha1 * (r - r01))
+	  - 2 * exp(-alpha1 * (r - r01)))
+	  + E2 * (exp(-2 * alpha2 * (r - r02))
+	  - 2 * exp(-alpha2 * (r - r02))) + delta) 
+	</expression>
+	<derivative>
+	  E1 * (2 * alpha1 * exp(-alpha1 * (r - r01))
+	  - 2 * alpha1 * exp(-2 * alpha1 * (r - r01))) 
+	  + E2 * (2 * alpha2 * exp(-alpha2 * (r - r02))
+	  - 2 * alpha2 * exp(-2 * alpha2 * (r - r02)))
+	</derivative>
+	<param name="E1">2.01458e2</param>
+	<param name="alpha1">2.97758</param>
+	<param name="r01">0.83591</param>
+	<param name="E2">6.59288e-3</param>
+	<param name="alpha2">1.54927</param>
+	<param name="r02">4.46867</param>
+	<param name="delta">0.86225e-2</param>
+	<screening>
+	  <user-function id="rho_screening">
+	    <cutoff>5.50679</cutoff>
+	    <input-var>r</input-var>
+	    <expression>
+	      1 - 1/(1 + ((r - cutoff) / h)^4)
+	    </expression>
+	    <derivative>
+	      4 * h^4 * (r-cutoff)^3 / ((h^4 + (r-cutoff)^4)^2)
+	    </derivative>
+	    <param name="h">0.50037</param>
+	  </user-function>
+	</screening>
+      </user-function>
+      <user-function id="V_term2">
+	<cutoff>5.50679</cutoff>
+	<input-var>r</input-var>
+	<expression>
+	  - (r &lt; rs1 ? S1*(rs1-r)^4 : 0)
+	  - (r &lt; rs2 ? S2*(rs2-r)^4 : 0)
+	  - (r &lt; rs3 ? S3*(rs3-r)^4 : 0)
+	</expression>
+	<derivative>
+	  - (r &lt; rs1 ? -4*S1*(rs1-r)^3 : 0)
+	  - (r &lt; rs2 ? -4*S2*(rs2-r)^3 : 0)
+	  - (r &lt; rs3 ? -4*S3*(rs3-r)^3 : 0)
+	</derivative>
+	<param name="rs1">2.24</param>
+	<param name="rs2">1.80</param>
+	<param name="rs3">1.20</param>
+	<param name="S1">4.0</param>
+	<param name="S2">40.0</param>
+	<param name="S3">1.15e3</param>
+      </user-function>
+    </sum>
+
+    <user-function id="rho">
+      <input-var>r</input-var>
+      <expression>
+	a * exp(-beta1*(r - r03)^2)
+        + exp(-beta2*(r - r04))
+      </expression>
+      <derivative>
+        beta2 * (-exp(-beta1 * (r - r04)))
+	- 2 * a * beta1 * (r - r03) * exp(-beta1 * (r - r03)^2)
+      </derivative>
+      <param name="a">3.80362</param>
+      <param name="r03">-2.19885</param>
+      <param name="r04">-2.61984e2</param>
+      <param name="beta1">0.17394</param>
+      <param name="beta2">5.35661e2</param>
+      <screening>
+	<user-function id="rho_screening">
+	  <cutoff>5.50679</cutoff>
+	  <input-var>r</input-var>
+	  <expression>
+	    1 - 1/(1 + ((r - cutoff) / h)^4)
+	  </expression>
+	  <derivative>
+	    4 * h^4 * (r - cutoff)^3 / ((h^4 + (r - cutoff)^4)^2)
+	  </derivative>
+	  <param name="h">0.5</param>
+	</user-function>
+      </screening>
+    </user-function>
+
+    <user-function id="F">
+      <input-var>rho</input-var>
+      <expression>
+	(rho &lt; 1) ?
+	(F0 + 0.5 * F2 * (rho - 1)^2 + q1 * (rho - 1)^3
+	+ q2 * (rho - 1)^4 + q3 * (rho - 1)^5 + q4 * (rho - 1)^6)
+	: 
+	(F0 + 0.5 * F2 * (rho - 1)^2 + q1 * (rho - 1)^3
+	+ Q1 * (rho - 1)^4) / (1 + Q2 * (rho - 1)^3)
+      </expression>
+      <derivative>
+	(rho &lt; 1) ?
+	(rho - 1) * ( F2
+	+ 3 * q1 * (rho - 1)
+	+ 4 * q2 * (rho - 1)^2
+	+ 5 * q3 * (rho - 1)^3
+	+ 6 * q4 * (rho - 1)^4 )
+	:
+	(F2 * (rho - 1) + 3 * q1 * (rho - 1)^2
+	+ 4 * Q1 * (rho - 1)^3)/(Q2 * (rho - 1)^3 + 1)
+	- (3 * Q2 * (rho - 1)^2 * (F0 + 0.5 * F2 * (rho - 1)^2
+	+ q1 * (rho - 1)^3 + Q1 * (rho - 1)^4))
+	/ ((Q2 * (rho - 1)^3 + 1)^2)
+      </derivative>
+      <param name="F0">-2.3</param>
+      <param name="F2">1.4</param>
+      <param name="q1">-1.3</param>
+      <param name="q2">-0.9</param>
+      <param name="q3">1.8</param>
+      <param name="q4">3.0</param>
+      <param name="Q1">0.4</param>
+      <param name="Q2">0.3</param>
+    </user-function>
+
+  </functions>
+
+</eam>

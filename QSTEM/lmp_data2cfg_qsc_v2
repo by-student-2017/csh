@@ -1,0 +1,229 @@
+#! /bin/csh -f
+set filename = $1
+cp ${filename}.data tmp.data
+#
+awk '{if(($1 ~/^[0-9]+$/) && ($2 ~/^[0-9]+$/)){printf "%d %12.6f %12.6f %12.6f \n",$2, $3, $4, $5}}' tmp.data >> tmp.xyz
+#
+awk  '{if($2=="atoms"){print "Number of particles = " $1}}' tmp.data >> tmp.cfg
+echo "A = 1.0 Angstrom"  >> tmp.cfg
+#
+#set num_of_atoms = `awk '{if( ($2 == "atom") && ($3 == "types")){print $1 }}' tmp.data`
+set x = `awk '{if($3 == "xlo"){print $2 }}' tmp.data`
+set y = `awk '{if($3 == "ylo"){print $2 }}' tmp.data`
+set z = `awk '{if($3 == "zlo"){print $2 }}' tmp.data`
+#
+echo "H0(1,1) = ${x}" >> tmp.cfg
+echo "H0(1,2) = 0.0"  >> tmp.cfg
+echo "H0(1,3) = 0.0"  >> tmp.cfg
+#
+echo "H0(2,1) = 0.0"  >> tmp.cfg
+echo "H0(2,2) = ${y}" >> tmp.cfg
+echo "H0(2,3) = 0.0"  >> tmp.cfg
+#
+echo "H0(3,1) = 0.0"  >> tmp.cfg
+echo "H0(3,2) = 0.0"  >> tmp.cfg
+echo "H0(3,3) = ${z}" >> tmp.cfg
+#
+echo ".NO_VELOCITY." >> tmp.cfg
+echo "entry_count = 5" >> tmp.cfg
+#
+set element_list = (H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Sc Ti V Cr Mn Fe Co Ni Cu Zn Ga Ge As Se Br Kr Rb Sr Y Zr Nb Mo Tc Ru Rh Pd Ag Cd In Sn Sb Te I Xe Cs Ba La Ce Pr Nd Pm Sm Eu Gd Tb Dy Ho Er Tm Yb Lu Hf Ta W Re Os Ir Pt Au Hg Tl Pb Bi Po At Rn Fr Ra Ac Th Pa U Np Pu Am Cm Bk Cf Es Fm Md No Lr Rf Df Sg Bh Hs Mt Ds Rg Cn Nh Fl Mc Lv Ts Og)
+#
+set mass_list = (1.00794 4.00260 6.941 9.01218 10.81 12.01 14.007 16.00 18.9984 20.180 22.99 24.305 26.98 28.1 30.97 32.1 35.45 39.95 39.10 40.08 44.955912 47.867 50.9415 51.9961 54.938045 55.845 58.933195 58.6934 63.546 65.38 69.723 72.63 74.92160 78.96 79.904 83.798 85.4678 87.62 88.90585 91.224 92.90638 95.96 98 101.07 102.90550 106.42 107.8682 112.411 114.818 118.710 121.760 127.60 126.90447 131.293 132.9054519 137.33 138.90547 140.116 140.90765 144.242 145 150.36 151.964 157.25 158.92535 162.500 164.93032 167.259 168.93421 173.054 174.9668 178.49 180.94788 183.84 186.207 190.23 192.217 195.084 196.966569 200.59 204.3833 207.2 208.98040 209 210 222 223 226 227 232.0381 231.03588 238.02891 237 244 243 247 247 251 252 257 258 259 262 261.11 268 271 270 269 278 281 281 285 286 289 289 293 294 294)
+#
+set ion_charge_list = (1.0 0.0 1.0 2.0 0.0 0.0 -3.0 -2.0 -1.0 0.0 1.0 2.0 3.0 0.0 -3.0 -2.0 -1.0 0.0 1.0 2.0 3.0 4.0 3.0 3.0 2.0 3.0 2.0 2.0 2.0 2.0 3.0 4.0 -3.0 -2.0 -1.0 0.0 1.0 2.0 3.0 4.0 5.0 6.0 7.0 3.0 3.0 2.0 1.0 2.0 3.0 4.0 3.0 -2.0 -1.0 0.0 1.0 2.0 3.0 3.0 3.0 3.0 3.0 3.0 3.0 3.0 3.0 3.0 3.0 3.0 3.0 3.0 3.0 4.0 5.0 6.0 7.0 4.0 4.0 4.0 3.0 2.0 1.0 2.0 3.0 2.0 1.0 0.0 1.0 2.0 3.0 4.0 5.0 6.0 5.0 4.0 3.0 3.0 3.0 3.0 3.0 3.0 2.0 2.0 3.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0)
+# https://www.sciencegeek.net/tables/PT_ions.pdf
+#
+if ("$2" == "-atom") then
+  set atoms = (`echo $3 | awk '{print $0}'`)
+else if ("$3" == "-atom") then
+  set atoms = (`echo $4 | awk '{print $0}'`)
+else if ("$4" == "-atom") then
+  set atoms = (`echo $5 | awk '{print $0}'`)
+else if ("$5" == "-atom") then
+  set atoms = (`echo $6 | awk '{print $0}'`)
+else if ("$6" == "-atom") then
+  set atoms = (`echo $7 | awk '{print $0}'`)
+else if ("$7" == "-atom") then
+  set atoms = (`echo $8 | awk '{print $0}'`)
+else if ("$8" == "-atom") then
+  set atoms = (`echo $9 | awk '{print $0}'`)
+endif
+#
+set i = 1
+foreach natom ($atoms)
+  awk -v num=${i} -v element=${atoms[${i}]} '{if($1==num){print element " " $2 " " $3 " " $4}}' tmp.xyz >> tmp2.xyz
+  @ i += 1
+end
+#
+set count = 1
+foreach atom ($element_list)
+  set num = `grep -c -i ${atom} tmp2.xyz`
+  if (${num} > 0) then
+    #echo ${num}
+    #echo ${count}
+    set mass = `echo $mass_list[$count] | awk '{printf("%d",$1+0.5)}'`
+    echo ${mass} >> tmp.cfg 
+    echo ${atom} >> tmp.cfg 
+    awk -v n=${atom} -v x=${x} -v y=${y} -v z=${z} -v mass=${mass} '{if($1==n){printf "%12.6f %12.6f %12.6f %12.6f    1.000000 \n", $2/x, $3/y, $4/z,((0.45*28)/mass)}}' tmp2.xyz >> tmp.cfg
+    endif
+  endif
+  @ count += 1
+end
+#
+#rm -f -r tmp.xyz tmp2.xyz
+mv tmp.cfg ${filename}.cfg
+#
+# calculate number of slices
+set thickness = ${z}
+#
+set slices = `echo ${thickness} | awk '{printf("%d",$1/2.0+0.5)}'`
+set slice_thickness = `echo "${thickness} ${slices}" | awk '{printf("%f",$1/$2)}'`
+#echo ${thickness}
+#echo ${slices}
+#
+if ("$2" == "-kv") then
+  set v0 = `echo $3 | awk '{printf("%11.6f",$1)}'`
+else if ("$3" == "-kv") then
+  set v0 = `echo $4 | awk '{printf("%11.6f",$1)}'`
+else if ("$4" == "-kv") then
+  set v0 = `echo $5 | awk '{printf("%11.6f",$1)}'`
+else if ("$5" == "-kv") then
+  set v0 = `echo $6 | awk '{printf("%11.6f",$1)}'`
+else if ("$6" == "-kv") then
+  set v0 = `echo $7 | awk '{printf("%11.6f",$1)}'`
+else if ("$7" == "-kv") then
+  set v0 = `echo $8 | awk '{printf("%11.6f",$1)}'`
+else if ("$8" == "-kv") then
+  set v0 = `echo $9 | awk '{printf("%11.6f",$1)}'`
+else
+  set v0 = 200.000000
+endif
+set lambda = `echo ${v0} | awk '{printf("%12.10f",12.26/10.0/(($1*10^3*(1+0.9788*10^-3*$1))^(1/2)))}'`
+set defocus = `echo ${lambda} | awk '{printf("%f",-1.2*(1.0*$1)^(1/2)*1000)}'`
+#echo ${lambda}
+#echo ${defocus}
+set resolutionX = `echo ${x} | awk '{printf("%f",$1/512)}'`
+set resolutionY = `echo ${y} | awk '{printf("%f",$1/512)}'`
+#
+if ("$2" == "-autoz" || "$3" == "-autoz" || "$4" == "-autoz" || "$5" == "-autoz" || "$6" == "-autoz" || "$7" == "-autoz" || "$8" == "-autoz" || "$9" == "-autoz" || "${10}" == "-autoz") then
+  set zOffset = `echo ${slice_thickness} | awk '{printf("%f",$1/2)}'`
+else
+  set zOffset = 0.000000
+endif
+
+if ("$2" == "-lab6" || "$3" == "-lab6" || "$4" == "-lab6" || "$5" == "-lab6" || "$6" == "-lab6" || "$7" == "-lab6" || "$8" == "-lab6" || "$9" == "-lab6" || "${10}" == "-lab6") then
+  set dVV = `echo ${v0} | awk '{printf("%f",1.5/($1*1000))}'`
+  set Cs  = 1.00000
+  set Cc  = 1.400000
+  set alpha = 15.0 # 1.5 - 20 [mrad]
+  set Source_Size = 10
+  set beam_current = 20 
+else if ("$2" == "-fe" || "$3" == "-fe" || "$4" == "-fe" || "$5" == "-fe" || "$6" == "-fe" || "$7" == "-fe" || "$8" == "-fe" || "$9" == "-fe" || "${10}" == "-fe") then
+  set dVV = `echo ${v0} | awk '{printf("%f",0.65/($1*1000))}'`
+  set Cs  = 1.00000
+  set Cc  = 1.400000
+  set alpha = 1.5 # 1.5 - 20 [mrad]
+  set Source_Size = 2
+  set beam_current = 20 
+else if ("$2" == "-arm" || "$3" == "-arm" || "$4" == "-arm" || "$5" == "-arm" || "$6" == "-arm" || "$7" == "-arm" || "$8" == "-arm" || "$9" == "-arm" || "${10}" == "-arm") then
+  set dVV = `echo ${v0} | awk '{printf("%f",0.325/($1*1000))}'`
+  set Cs  = 1.00000
+  set Cc  = 1.400000
+  set alpha = 1.5 # 1.5 - 20 [mrad]
+  set Source_Size = 1
+  set beam_current = 20 
+else
+  set dVV = 0.000003
+  set Cs  = 1.00000
+  set Cc  = 1.000000
+  set alpha = 1.5 # 1.5 - 20 [mrad]
+  set Source_Size = 0
+  set beam_current = 1 
+endif
+
+if ("$2" == "-tds" || "$3" == "-tds" || "$4" == "-tds" || "$5" == "-tds" || "$6" == "-tds" || "$7" == "-tds" || "$8" == "-tds" || "$9" == "-tds" || "${10}" == "-tds") then
+  set tds = "yes"
+else
+  set tds = "no"
+endif
+
+cat << EOF > tem.qsc
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% STEM configuration file generated by qstem
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+mode: TEM
+print level: 4  % indicates how much information in output
+save level:  3  % indicates how much information shall be saved 
+filename: ${filename}.cfg 
+resolutionX:  ${resolutionX}
+resolutionY:  ${resolutionY}
+NCELLX: 1
+NCELLY: 1
+NCELLZ: 1
+v0: ${v0}  % beam energy
+tds: ${tds} % do NOT include thermal diffuse scattering
+temperature: 298.000000	% temperature in Kelvin 
+slice-thickness: ${slice_thickness}  % slice thckness in A
+slices: ${slices}		% number of different slices per slab in z-direction
+center slices: no       % do not center slices
+slices between outputs: 10  % give intermediate results after every 8 slices
+xOffset:  0.000000      % slize x-position offset in cartesian coords
+yOffset:  0.000000      % slize y-position offset in cartesian coords
+zOffset:  ${zOffset}      % slize z-position offset in cartesian coords
+periodicXY: no		% not periodic in x- and y-direction
+periodicZ: no		% not periodic in z-direction
+
+% Geometrical properties 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+
+Crystal tilt X: 0.000000	% tilt in rad 
+Crystal tilt Y: 0.000000  
+Crystal tilt Z: 0.000000  
+Beam tilt X: 0.0	% beam tilt in mrad 
+Beam tilt Y: 0.0
+Tilt back: no 
+
+% TEM imaging parameters 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+
+nx: 512		% array size used for probe 
+ny: 512         % ny = nx, if not specified
+Cs: ${Cs}       % Speherical abberation in mm
+C5: 0.000000	% C_5 abberation in mm
+Cc: ${Cc}	% Chromatic abberation in mm
+dV/V: ${dVV}	% energy spread in eV (FWHM)
+alpha: ${alpha}	 % Illumination angle in mrad
+defocus: ${defocus}	
+astigmatism: 0.000000	
+astigmatism angle: 0.000000	
+
+
+Source Size (diameter): ${Source_Size}  % source size in A
+beam current: ${beam_current}        % beam current in pA (default: 1)
+dwell time: 1000        % dwell time in msec (default: 1) (GUI 1.6021773e-4)
+smooth: yes		% smoothen edge of probe in rec. space
+gaussian: no		
+% Parameters for potential calculation
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+
+potential3D:          yes  % use 3D or 2D potential (3D realistically simulates z-motion of atoms)
+atom radius:          5.0	% radius used for calculation of proj potential V_proj(r)
+plot V(r)*r:          no	% will create a plot for V_proj(r)*r vs. r  for all slices and 1st atom
+bandlimit f_trans:    no	% indicate whether to band limit transmission function or not
+save potential:       no	% whether we want to save the projected potential in files
+save projected potential:       yes	% whether we want to save the total projected potential
+one time integration: yes  % calculate V_proj once and then copy (much faster) 
+Display Gamma: 0     % Gamma value for image scaling (0 = logarithmic)
+Folder: "${filename}"
+Runs for averaging: 30  % averaging over 30 images for TDS simulation
+Structure Factors: WK
+show Probe: no		% displays a graph of the crosssection of the inc. e-beam
+propagation progress interval: 10 % show progress every N_prop_prog beam positions
+potential progress interval: 1000 % show progress every N_pot_prog atoms
+update Web: no		% put results on web page
+Pendelloesung plot: no  % flag indicates whether to store Pendeloesung plot
+sequence: 1 1
+EOF
+

@@ -1,0 +1,36 @@
+#! /bin/csh -f
+set elem_data = (C H)
+#
+set filename = $1
+cp ${filename}.cfg tmp.cfg
+echo " AUX LARGE CHARGE=0 SINGLET PM7" > tmp.mop
+echo "Title" >> tmp.mop
+echo " " >> tmp.mop
+#
+set a_half_lattice = `awk 'NR==14{print $1}' tmp.cfg`
+echo "a lattice * 0.5:" ${a_half_lattice}
+set b_half_lattice = `awk 'NR==15{print $2}' tmp.cfg`
+echo "b lattice * 0.5:" ${b_half_lattice}
+set c_half_lattice = `awk 'NR==16{print $3}' tmp.cfg`
+echo "c lattice * 0.5:" ${c_half_lattice}
+#
+set total_atoms = `awk 'NR==7{print $1}' tmp.cfg`
+set count = 0
+set natom_remain = ${total_atoms}
+set read_start = 0
+while (${natom_remain} > 0)
+  @ count += 1
+  set elem_symbol = ${elem_data[${count}]}
+  set num_elem = `awk -v n=${count} 'NR==(14+n*4){print $1}' tmp.cfg`
+  set natom_remain = `echo "${natom_remain} - ${num_elem}" | bc`
+  awk -v elem_symbol=${elem_symbol} -v ha=${a_half_lattice} -v hb=${b_half_lattice} -v hc=${c_half_lattice} -v rs=${read_start} -v natom=${num_elem} '(NR>=26+rs && NR<natom+26+rs){printf " %s  %7.4f 1 %7.4f 1 %7.4f 1 \n",elem_symbol,($1+1)*ha,($2+1)*hb,($3+1)*hc}' tmp.cfg >> tmp.mop
+  set read_start = `echo "${read_start} + ${num_elem}" | bc`
+end
+#
+awk -v n=2 'NR==14{printf " Tv %7.4f 1  0.0000 0  0.0000 0 \n",($1)*n}' tmp.cfg >> tmp.mop
+awk -v n=2 'NR==15{printf " Tv  0.0000 0  %7.4f 1  0.0000 0 \n",($2)*n}' tmp.cfg >> tmp.mop
+awk -v n=2 'NR==16{printf " Tv  0.0000 0  0.0000 0  %7.4f 1 \n",($3)*n}' tmp.cfg >> tmp.mop
+#
+mv tmp.mop ${filename}.mop
+rm -f -r tmp.cfg
+

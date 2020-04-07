@@ -1,0 +1,102 @@
+#! /bin/csh -f
+
+set num_core_pwscf = 2
+set num_core_potfit = $4 # less than number of data in config 
+
+set filename = $1
+set total_num_elements = $2
+set potential_type = $3
+set max_num_move = $4
+set x = $5
+set temperature_K = $6
+set cif2cel_other_option = $7
+
+echo -n "" > ${filename}.config
+echo -n "" > ${filename}.pot
+echo -n "" > param_file
+
+set cif_list = `ls *.cif`
+foreach cif_name (${cif_list})
+  
+  set cif_folder_name = `echo $cif_name:r`
+  
+  set i = 1
+  while($i <= ${max_num_move})
+    set scale = `echo "0.98 + 0.02/((${max_num_move}+1)/2)*$i" | bc -l | awk '{printf "%5.3f",$0}'`
+    foreach vector (a b c)
+      rm -f -r ${cif_folder_name}_${vector}${scale}
+      mkdir ${cif_folder_name}_${vector}${scale}
+      cd ./${cif_folder_name}_${vector}${scale}
+      cp ../${cif_name} ./
+      #cif2cell -p pwscf --pwscf-pseudo-PSLibrary-libdr=$HOME/PSLibrary --pwscf-bin-dir=$HOME/q-e-qe-\*/bin --setup-all --k-resolution=0.48 --pwscf-spin=no --pwscf-force=yes --pwscf-stress=yes --pwscf-run-type=cp -f ${cif_name} --no-reduce --supercell="[$x,$x,$x]" --pwscf-pseudo-priority="-rrkjus","-kjpaw","-dn","-spnl","-spn","-nl","-n","" --pwscf-temperature=${temperature_K} ${cif2cel_other_option}
+      cif2cell -p pwscf --pwscf-pseudo-PSLibrary-libdr=$HOME/PSLibrary --pwscf-bin-dir=$HOME/q-e-qe-\*/bin --setup-all --k-resolution=100 --pwscf-spin=no --pwscf-force=yes --pwscf-stress=yes --pwscf-run-type=cp -f ${cif_name} --no-reduce --supercell="[$x,$x,$x]" --pwscf-pseudo-priority="-rrkjus","-kjpaw","-dn","-spnl","-spn","-nl","-n","" --pwscf-temperature=${temperature_K} ${cif2cel_other_option} 
+      if ("${cif2cel_other_option}" == "--pwscf-ensemble-DFT=yes") then
+        sed -i 's/nstep=1000, iprint=100, isave=1000,/nstep=10, iprint=5, isave=5,/g' ${cif_folder_name}.cp.in
+      else
+        sed -i 's/nstep=1000, iprint=100, isave=1000,/nstep=200, iprint=20, isave=200,/g' ${cif_folder_name}.cp.in
+      endif
+
+      cp ${cif_folder_name}.cp.in tmp.cp.in 
+    
+      set cell_param_line = `grep -n "CELL_PARAMETERS" tmp.cp.in | sed -e 's/:.*//g'`
+
+      if ("${vector}" == "a") then
+        awk -v cpl=${cell_param_line} -v scale=${scale} '{if(NR==(cpl+1)){printf " %19.15f %19.15f %19.15f \n",$1*scale,$2*scale,$3*scale}else{printf "%s \n",$0}}' tmp.cp.in > ${cif_folder_name}.cp.in
+      else if ("${vector}" == "b") then
+        awk -v cpl=${cell_param_line} -v scale=${scale} '{if(NR==(cpl+2)){printf " %19.15f %19.15f %19.15f \n",$1*scale,$2*scale,$3*scale}else{printf "%s \n",$0}}' tmp.cp.in > ${cif_folder_name}.cp.in
+      else if ("${vector}" == "c") then
+        awk -v cpl=${cell_param_line} -v scale=${scale} '{if(NR==(cpl+3)){printf " %19.15f %19.15f %19.15f \n",$1*scale,$2*scale,$3*scale}else{printf "%s \n",$0}}' tmp.cp.in > ${cif_folder_name}.cp.in
+      endif
+
+      mpirun -np ${num_core_pwscf} $HOME/q-e-qe-*/bin/cp.x < ${cif_folder_name}.cp.in | tee ${cif_folder_name}.cp.out
+
+      cp $HOME/PSLibrary/energy_data_for_isolated_atom ./   
+      $HOME/potfit/util/pwscf2force $x $x $x | tee ${cif_folder_name}_${vector}${scale}.config
+      cat ${cif_folder_name}_${vector}${scale}.config >> ../${filename}.config
+
+      cd ..
+    end
+    @ i = $i + 1
+  end
+end
+
+if ("${total_num_elements}" == "1") then
+  if ("${potential_type}" == "eam") then
+    makeapot -g -n 1 -i eam -f "morse_sc,csw2_sc,bjs" | tee ${filename}.pot
+  else if ("${potential_type}" == "adp") then
+    makeapot -g -n 1 -i adp -f "eopp_sc,csw2_sc,bjs,2*csw2_sc" | tee ${filename}.pot
+  #else if ("${potential_type}" == "stiweb") then
+  #  makeapot -g -n 1 -i stiweb | tee ${filename}.pot
+  #else if ("${potential_type}" == "tersoff") then
+  #  makeapot -g -n 1 -i tersoff | tee ${filename}.pot
+  endif
+else if ("${total_num_elements}" == "2") then
+  if ("${potential_type}" == "eam") then
+    makeapot -g -n 2 -i eam -f "3*morse_sc,2*csw2_sc,2*bjs" | tee ${filename}.pot
+  else if ("${potential_type}" == "adp") then
+    makeapot -g -n 2 -i adp -f "3*eopp_sc,2*csw2_sc,2*bjs,6*csw2_sc" | tee ${filename}.pot
+  #else if ("${potential_type}" == "stiweb") then
+  #  makeapot -g -n 2 -i stiweb | tee ${filename}.pot
+  #else if ("${potential_type}" == "tersoff") then
+  #  makeapot -g -n 2 -i tersoff | tee ${filename}.pot
+  endif
+else if ("${total_num_elements}" == "3") then
+  if ("${potential_type}" == "eam") then
+    makeapot -g -n 3 -i eam -f "6*morse,3*csw2,3*bjs" | tee ${filename}.pot
+  else if ("${potential_type}" == "adp") then
+    makeapot -g -n 3 -i adp -f "6*eopp_sc,3*csw2_sc,3*bjs,12*csw2_sc" | tee ${filename}.pot
+  #else if ("${potential_type}" == "stiweb") then
+  #  makeapot -g -n 3 -i stiweb | tee ${filename}.pot
+  #else if ("${potential_type}" == "tersoff") then
+  #  makeapot -g -n 3 -i tersoff | tee ${filename}.pot
+  endif
+endif
+
+potfit_setup -c ${filename}.config -p ${filename}.pot -s ${filename} | tee param_file
+$HOME/potfit/util/correct_config ${filename}
+if ("${num_core_potfit}" == "1") then
+  potfit_apot_${potential_type}_mkl_stress param_file
+else
+  mpirun -np ${num_core_potfit} potfit_apot_${potential_type}_mkl_mpi_stress param_file
+endif
+

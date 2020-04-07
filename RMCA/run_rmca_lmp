@@ -1,0 +1,16 @@
+#! /bin/csh -f
+
+mkdir cfg
+
+set No = 1
+set MaxNo = $2
+while ($No <= $MaxNo)
+
+  printf $1 | ./rmca_linux
+  ./cfg2lmp $1
+  ~/lammps/src/lmp_serial < in.lmp
+  ./lmp2cfg out
+  mv out.cfg $1.cfg
+  
+  @ No = $No + 1
+end

@@ -1,0 +1,11 @@
+#! /bin/csh -f
+
+set out_file_name = $1
+sed -n '1,5p' POSCAR > ${out_file_name}
+sed -n '7,7p' POSCAR >> ${out_file_name}
+echo "Cartesian" >> ${out_file_name}
+set start_line = `grep -n "POSITION" OUTCAR | tail -1 | sed -e 's/:.*//g'`
+set end_line = `grep -n "total drift:" OUTCAR | tail -1 | sed -e 's/:.*//g'`
+awk -v sl=${start_line} -v el=${end_line} 'sl+2<=NR && NR<=el-2{print $0}' OUTCAR >> ${out_file_name}
+
+

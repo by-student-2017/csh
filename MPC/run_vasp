@@ -1,0 +1,40 @@
+#! /bin/csh -f
+
+set cif_list = `ls *.cif`
+foreach cif_name (${cif_list})
+  
+  set cif_folder_name = `echo $cif_name:r`
+  cif2cell -p vasp --vasp-format=5 --vasp-encutfac=1.0 --vasp-pseudo-libdr=$HOME/vasp.5.4.1/potpaw_PBE --vasp-cartesian-lattice-vectors --setup-all -f ${cif_folder_name}.cif
+  sed -i 's/ISPIN = 2/ISPIN = 1/g' INCAR
+  sed -i '22,23d' INCAR
+  echo -n "" > ${cif_folder_name}-DFT
+  
+  set i = 1
+  while($i <= $1)
+    set scale = `echo "0.98 + 0.02/(($1+1)/2)*$i" | bc -l | awk '{printf "%5.3f",$0}'`
+    rm -f -r ${cif_folder_name}_${scale}
+    mkdir ${cif_folder_name}_${scale}
+    cp INCAR ./${cif_folder_name}_${scale}/INCAR
+    cp KPOINTS ./${cif_folder_name}_${scale}/KPOINTS_backup
+    cp POTCAR ./${cif_folder_name}_${scale}/POTCAR
+    cp POSCAR ./${cif_folder_name}_${scale}/POSCAR
+    cd ./${cif_folder_name}_${scale}
+    
+    sed -i "2 s/1.0/${scale}/g" POSCAR
+
+    mpirun -np 4 $HOME/vasp*/bin/vasp_std
+
+    set TOTEN = `grep "TOTEN" OUTCAR | tail -1 | sed 's/.*=//g' | sed 's/eV//g'`
+
+    set La = `awk -v scale=${scale} 'NR==3{printf "%6.5f",($1^2+$2^2+$3^2)^(1/2)*scale}' POSCAR`
+
+    cd ..
+    echo "${La} ${TOTEN}" >> ${cif_folder_name}-DFT
+    
+    @ i = $i + 1
+  end
+  echo "----------"
+  echo ${cif_folder_name}-DFT
+  echo "lattice constant a (Angstrom) | total energy (eV)"
+  cat ${cif_folder_name}-DFT
+end

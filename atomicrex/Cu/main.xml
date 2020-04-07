@@ -1,0 +1,26 @@
+<?xml version='1.0' encoding='iso-8859-1'?>
+<job>
+
+  <name>Fitting an EAM potential for copper</name>
+  
+  <verbosity>medium</verbosity>
+  
+  <fitting>
+    <BFGS conv-threshold='1e-5' max-iter='20' />
+  </fitting>
+  
+  <atom-types>
+    <species mass='63.546' atomic-number='29'>Cu</species>
+  </atom-types>
+  
+  <potentials>
+    <xi:include href='potential.xml'
+		xmlns:xi='http://www.w3.org/2003/XInclude' />
+  </potentials>
+  
+  <structures>
+    <xi:include href='structures.xml'
+		xmlns:xi='http://www.w3.org/2003/XInclude' />
+  </structures>
+
+</job>

@@ -1,0 +1,27 @@
+opti conp prop phon inten noden dispersion
+cell
+4.5119 4.5119 3.0157 90.0 90.0 90.0
+frac
+Mg core  0.000000   0.000000   0.500000  XXX0
+Mg core  0.000000   0.000000   0.500000  XXX1
+H  core  0.195920   0.195920   0.000000  XXX2
+H  shel  0.195920   0.195920   0.000000  XXX3
+space
+136
+buck
+H shel Mg core XXX4 XXX6  XXX8 0.0 12.800
+H shel H  shel XXX5 XXX7  XXX9 0.0 12.800
+H core Mg core XXX4 XXX6  XXX8 0.0 12.800
+spring
+H  XX10 0
+Mg XX11 0
+#three
+#Mg core H shel H shel 2.0972 90.0 1.940 1.958 3.898
+#shrink
+#4 4 4
+#kpoints
+#8 8 8
+#dispersion 1 500
+#0.0 0.0 0.0 to 0.0 0.5 0.0 to 0.5 0.5 0.0 to 0.0 0.0 0.0 to 0.0 0.0 0.5
+#output phon mgh2
+

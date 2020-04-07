@@ -1,0 +1,31 @@
+#! /bin/csh -f
+set filename = $1
+cp ${filename}.cfg tmp.cfg
+echo "title: ${filename}.cfg"  > tmp.vasp
+echo "1.0"  >> tmp.vasp
+#
+set a_half_lattice = `awk 'NR==14{print $1}' tmp.cfg`
+echo "a lattice * 0.5:" ${a_half_lattice}
+set b_half_lattice = `awk 'NR==15{print $2}' tmp.cfg`
+echo "b lattice * 0.5:" ${b_half_lattice}
+set c_half_lattice = `awk 'NR==16{print $3}' tmp.cfg`
+echo "c lattice * 0.5:" ${c_half_lattice}
+#
+set a = `echo "${a_half_lattice}*2" | bc`
+set b = `echo "${b_half_lattice}*2" | bc`
+set c = `echo "${c_half_lattice}*2" | bc`
+echo "a, b, c = "${a}", "${b}", "${c}
+#
+awk -v n=2 'NR==14{printf "%12.6f %12.6f %12.6f \n", ($1)*n, ($2)*n, ($3)*n}' tmp.cfg >> tmp.vasp
+awk -v n=2 'NR==15{printf "%12.6f %12.6f %12.6f \n", ($1)*n, ($2)*n, ($3)*n}' tmp.cfg >> tmp.vasp
+awk -v n=2 'NR==16{printf "%12.6f %12.6f %12.6f \n", ($1)*n, ($2)*n, ($3)*n}' tmp.cfg >> tmp.vasp
+echo " C H " >> tmp.vasp
+set total_atoms = `awk 'NR==7{print $1}' tmp.cfg`
+set num_1st_elem = `awk 'NR==18{print $1}' tmp.cfg`
+set num_2nd_elem = `echo "${total_atoms} ${num_1st_elem}" | awk '{print $1-$2}'`
+echo " ${num_1st_elem} ${num_2nd_elem} " >> tmp.vasp
+echo "frac" >> tmp.vasp
+awk 'NR>=26{printf "%12.6f %12.6f %12.6f \n",($1+1)/2,($2+1)/2,($3+1)/2}' tmp.cfg >> tmp.vasp
+rm -f -r tmp.cfg
+mv tmp.vasp ${filename}.vasp
+

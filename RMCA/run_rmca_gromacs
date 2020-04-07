@@ -1,0 +1,26 @@
+#! /bin/csh -f
+
+rm -f -r $1.tpr $1.edr md.log ener.edr
+
+set No = 1
+set MaxNo = $2
+while ($No <= $MaxNo)
+
+  printf $1 | ./rmca_linux
+  #
+  ./cfg2lmp_gro $1
+  python $HOME/InterMol/intermol/convert.py --lmp_in in.lmp_gro --gromacs --odir ./ --inefile=./mdout.mdp -lp=$HOME/lammps/src/lmp_serial -gp=/usr/bin
+  rm -f -r $1.tpr $1.edr md.log ener.edr
+  #
+  gmx grompp -f grompp.mdp -c in_converted.gro -p in_converted.top -o $1.tpr -maxwarn 5
+  rm -f -r topol.tpr in_converted.gro in_converted.top
+  #
+  gmx mdrun -s $1.tpr -c $1.gro -e $1.edr
+  ./gro2cfg $1
+  rm -f -r $1.tpr
+  mv $1.gro $1.gro.${No}
+  mv $1.edr $1.edr.${No}
+  mv md.log md.log.${No}
+  
+  @ No = $No + 1
+end

@@ -1,0 +1,85 @@
+#! /bin/csh -f
+set filename = $1
+cp ${filename}.cif tmp.cif
+sed -i 's/(.*.)//g' tmp.cif
+#
+echo -n > tmp.xyz
+#cat /dev/null > tmp.xyz
+# cif (old version)
+awk '{if(($3 ~/^[0-9].[0-9]+$/) && ($4 ~/^[0-9].[0-9]+$/) && ($6 != "Biso")){printf "%-10s %12.6f %12.6f %12.6f     0.00000     0.00000 \n",$1, $3, $4, $5}}' tmp.cif >> tmp.xyz
+# tmp.xyz (element, x, y, z, dummy=0.0000, dummy=0.0000)
+# cif (new version)
+awk '{if(($3 ~/^[0-9].[0-9]+$/) && ($4 ~/^[0-9].[0-9]+$/) && ($6 == "Biso")){sub("\r","",$8); printf "%-10s %12.6f %12.6f %12.6f %12.6f %12.6f \n",$8, $3, $4, $5, $7, $2}}' tmp.cif >> tmp.xyz
+# tmp.xyz (element, x, y, z, B, occupation)
+#
+set numofpar = `grep -c "" tmp.xyz`
+echo "Number of particles = "${numofpar} > tmp.cfg
+echo "A = 1.0 Angstrom"  >> tmp.cfg
+#
+set a = `awk '{if($1=="_cell_length_a"){print $2}}' tmp.cif`
+set b = `awk '{if($1=="_cell_length_b"){print $2}}' tmp.cif`
+set c = `awk '{if($1=="_cell_length_c"){print $2}}' tmp.cif`
+set alpha = `awk '{if($1=="_cell_angle_alpha"){print $2}}' tmp.cif`
+set beta  = `awk '{if($1=="_cell_angle_beta"){print $2}}' tmp.cif`
+set gamma = `awk '{if($1=="_cell_angle_gamma"){print $2}}' tmp.cif`
+# vector x
+#awk -v a=${a} -v b=${b} -v c=${c} -v alpha=${alpha} -v beta=${beta} -v gamma=${gamma} '{if($1=="_cell_angle_gamma"){printf "%9.6f %9.6f %9.6f \n", a, b*cos(gamma*3.141592653589793/180),c*cos(beta*3.141592653589793/180)}}' tmp.cif 
+awk -v a=${a} -v b=${b} -v c=${c} -v alpha=${alpha} -v beta=${beta} -v gamma=${gamma} '{if($1=="_cell_angle_gamma"){printf "HO(1,1) = %9.6f A \n", a}}' tmp.cif >> tmp.cfg
+awk -v a=${a} -v b=${b} -v c=${c} -v alpha=${alpha} -v beta=${beta} -v gamma=${gamma} '{if($1=="_cell_angle_gamma"){printf "HO(1,2) = %9.6f A \n", b*cos(gamma*3.141592653589793/180)}}' tmp.cif >> tmp.cfg
+awk -v a=${a} -v b=${b} -v c=${c} -v alpha=${alpha} -v beta=${beta} -v gamma=${gamma} '{if($1=="_cell_angle_gamma"){printf "HO(1,3) = %9.6f A \n", c*cos(beta*3.141592653589793/180)}}' tmp.cif >> tmp.cfg
+# vector y
+#awk -v a=${a} -v b=${b} -v c=${c} -v alpha=${alpha} -v beta=${beta} -v gamma=${gamma} '{if($1=="_cell_angle_gamma"){printf "%9.6f %9.6f %9.6f \n", 0.0, b*sin(gamma*3.141592653589793/180),c*(cos(alpha*3.141592653589793/180)-cos(beta*3.141592653589793/180)*cos(gamma*3.141592653589793/180))/sin(gamma*3.141592653589793/180)}}' tmp.cif
+awk -v a=${a} -v b=${b} -v c=${c} -v alpha=${alpha} -v beta=${beta} -v gamma=${gamma} '{if($1=="_cell_angle_gamma"){printf "HO(2,1) = %9.6f A \n", 0.0}}' tmp.cif >> tmp.cfg
+awk -v a=${a} -v b=${b} -v c=${c} -v alpha=${alpha} -v beta=${beta} -v gamma=${gamma} '{if($1=="_cell_angle_gamma"){printf "HO(2,2) = %9.6f A \n", b*sin(gamma*3.141592653589793/180)}}' tmp.cif >> tmp.cfg
+awk -v a=${a} -v b=${b} -v c=${c} -v alpha=${alpha} -v beta=${beta} -v gamma=${gamma} '{if($1=="_cell_angle_gamma"){printf "HO(2,3) = %9.6f A \n", c*(cos(alpha*3.141592653589793/180)-cos(beta*3.141592653589793/180)*cos(gamma*3.141592653589793/180))/sin(gamma*3.141592653589793/180)}}' tmp.cif >> tmp.cfg
+# vector z
+#awk -v a=${a} -v b=${b} -v c=${c} -v alpha=${alpha} -v beta=${beta} -v gamma=${gamma} '{if($1=="_cell_angle_gamma"){printf "%9.6f %9.6f %9.6f \n", 0.0, 0.0,c*(1 - cos(alpha*3.141592653589793/180)^2 -cos(beta*3.141592653589793/180)^2 - cos(gamma*3.141592653589793/180)^2 + 2*cos(alpha*3.141592653589793/180)*cos(beta*3.141592653589793/180)*cos(gamma*3.141592653589793/180))^(1/2)/sin(gamma*3.141592653589793/180)}}' tmp.cif
+awk -v a=${a} -v b=${b} -v c=${c} -v alpha=${alpha} -v beta=${beta} -v gamma=${gamma} '{if($1=="_cell_angle_gamma"){printf "HO(3,1) = %9.6f A \n", 0.0}}' tmp.cif >> tmp.cfg
+awk -v a=${a} -v b=${b} -v c=${c} -v alpha=${alpha} -v beta=${beta} -v gamma=${gamma} '{if($1=="_cell_angle_gamma"){printf "HO(3,2) = %9.6f A \n", 0.0}}' tmp.cif >> tmp.cfg 
+awk -v a=${a} -v b=${b} -v c=${c} -v alpha=${alpha} -v beta=${beta} -v gamma=${gamma} '{if($1=="_cell_angle_gamma"){printf "HO(3,3) = %9.6f A \n", c*(1 - cos(alpha*3.141592653589793/180)^2 -cos(beta*3.141592653589793/180)^2 - cos(gamma*3.141592653589793/180)^2 + 2*cos(alpha*3.141592653589793/180)*cos(beta*3.141592653589793/180)*cos(gamma*3.141592653589793/180))^(1/2)/sin(gamma*3.141592653589793/180)}}' tmp.cif >> tmp.cfg
+#
+echo ".NO_VELOCITY." >> tmp.cfg
+#
+# cif (old version)
+awk '{if((NR==1) && ($5 == 0.0) && ($6 == 0.0)){print "entry_count = 3"}}' tmp.xyz >> tmp.cfg
+# cif (new version)
+awk '{if((NR==1) && ($5 != 0.0) && ($6 != 0.0)){print "entry_count = 5"}}' tmp.xyz >> tmp.cfg
+#
+set element_list = (H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Sc Ti V Cr Mn Fe Co Ni Cu Zn Ga Ge As Se Br Kr Rb Sr Y Zr Nb Mo Tc Ru Rh Pd Ag Cd In Sn Sb Te I Xe Cs Ba La Ce Pr Nd Pm Sm Eu Gd Tb Dy Ho Er Tm Yb Lu Hf Ta W Re Os Ir Pt Au Hg Tl Pb Bi Po At Rn Fr Ra Ac Th Pa U Np Pu Am Cm Bk Cf Es Fm Md No Lr Rf Df Sg Bh Hs Mt Ds Rg Cn Nh Fl Mc Lv Ts Og)
+#
+set mass_list = (1.00794 4.00260 6.941 9.01218 10.81 12.01 14.007 16.00 18.9984 20.180 22.99 24.305 26.98 28.1 30.97 32.1 35.45 39.95 39.10 40.08 44.955912 47.867 50.9415 51.9961 54.938045 55.845 58.933195 58.6934 63.546 65.38 69.723 72.63 74.92160 78.96 79.904 83.798 85.4678 87.62 88.90585 91.224 92.90638 95.96 98 101.07 102.90550 106.42 107.8682 112.411 114.818 118.710 121.760 127.60 126.90447 131.293 132.9054519 137.33 138.90547 140.116 140.90765 144.242 145 150.36 151.964 157.25 158.92535 162.500 164.93032 167.259 168.93421 173.054 174.9668 178.49 180.94788 183.84 186.207 190.23 192.217 195.084 196.966569 200.59 204.3833 207.2 208.98040 209 210 222 223 226 227 232.0381 231.03588 238.02891 237 244 243 247 247 251 252 257 258 259 262 261.11 268 271 270 269 278 281 281 285 286 289 289 293 294 294)
+#
+set ion_charge_list = (1.0 0.0 1.0 2.0 0.0 0.0 -3.0 -2.0 -1.0 0.0 1.0 2.0 3.0 0.0 -3.0 -2.0 -1.0 0.0 1.0 2.0 3.0 4.0 3.0 3.0 2.0 3.0 2.0 2.0 2.0 2.0 3.0 4.0 -3.0 -2.0 -1.0 0.0 1.0 2.0 3.0 4.0 5.0 6.0 7.0 3.0 3.0 2.0 1.0 2.0 3.0 4.0 3.0 -2.0 -1.0 0.0 1.0 2.0 3.0 3.0 3.0 3.0 3.0 3.0 3.0 3.0 3.0 3.0 3.0 3.0 3.0 3.0 3.0 4.0 5.0 6.0 7.0 4.0 4.0 4.0 3.0 2.0 1.0 2.0 3.0 2.0 1.0 0.0 1.0 2.0 3.0 4.0 5.0 6.0 5.0 4.0 3.0 3.0 3.0 3.0 3.0 3.0 2.0 2.0 3.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0)
+# https://www.sciencegeek.net/tables/PT_ions.pdf
+#
+set count = 1
+foreach atom ($element_list)
+  set num = `grep -c -i ${atom} tmp.xyz`
+  if (${num} > 0) then
+    #echo ${num}
+    #echo ${count}
+    set mass = `echo $mass_list[$count] | awk '{printf("%d",$1+0.5)}'`
+    echo ${mass} >> tmp.cfg
+    echo ${atom} >> tmp.cfg
+    # cif (old version) (x, y, z)
+    awk -v n=${atom} -v a=1.0 -v b=1.0 -v c=1.0 -v alpha=${alpha} -v beta=${beta} -v gamma=${gamma} '{if(($1==n) && ($5 == 0.0) && ($6 == 0.0)){printf "%12.6f %12.6f %12.6f \n", (a*$2+b*cos(gamma*3.141592653589793/180)*$3+c*cos(beta*3.141592653589793/180)*$4), (0.0*$2+b*sin(gamma*3.141592653589793/180)*$3+c*(cos(alpha*3.141592653589793/180)-cos(beta*3.141592653589793/180)*cos(gamma*3.141592653589793/180))/sin(gamma*3.141592653589793/180)*$4), (0.0*$2+0.0*$3+c*(1 - cos(alpha*3.141592653589793/180)^2 -cos(beta*3.141592653589793/180)^2 - cos(gamma*3.141592653589793/180)^2 + 2*cos(alpha*3.141592653589793/180)*cos(beta*3.141592653589793/180)*cos(gamma*3.141592653589793/180))^(1/2)/sin(gamma*3.141592653589793/180)*$4)}}' tmp.xyz >> tmp.cfg
+    #
+    # cif (new version) (x, y, z, DW-factor, occupancy)
+    if ("$2" == "-rdw") then
+      #echo "read DW-factor"
+      awk -v n=${atom} -v a=1.0 -v b=1.0 -v c=1.0 -v alpha=${alpha} -v beta=${beta} -v gamma=${gamma} '{if(($1==n) && ($5 != 0.0) && ($6 != 0.0)){printf "%12.6f %12.6f %12.6f %12.6f %12.6f \n",(a*$2+b*cos(gamma*3.141592653589793/180)*$3+c*cos(beta*3.141592653589793/180)*$4), (0.0*$2+b*sin(gamma*3.141592653589793/180)*$3+c*(cos(alpha*3.141592653589793/180)-cos(beta*3.141592653589793/180)*cos(gamma*3.141592653589793/180))/sin(gamma*3.141592653589793/180)*$4), (0.0*$2+0.0*$3+c*(1 - cos(alpha*3.141592653589793/180)^2 -cos(beta*3.141592653589793/180)^2 - cos(gamma*3.141592653589793/180)^2 + 2*cos(alpha*3.141592653589793/180)*cos(beta*3.141592653589793/180)*cos(gamma*3.141592653589793/180))^(1/2)/sin(gamma*3.141592653589793/180)*$4),$5,$6}}' tmp.xyz >> tmp.cfg
+    else
+      #echo "calculate DW-factor"
+      awk -v n=${atom} -v mass=${mass} -v a=1.0 -v b=1.0 -v c=1.0 -v alpha=${alpha} -v beta=${beta} -v gamma=${gamma} '{if(($1==n) && ($5 != 0.0) && ($6 != 0.0)){printf "%12.6f %12.6f %12.6f %12.6f %12.6f \n",(a*$2+b*cos(gamma*3.141592653589793/180)*$3+c*cos(beta*3.141592653589793/180)*$4), (0.0*$2+b*sin(gamma*3.141592653589793/180)*$3+c*(cos(alpha*3.141592653589793/180)-cos(beta*3.141592653589793/180)*cos(gamma*3.141592653589793/180))/sin(gamma*3.141592653589793/180)*$4), (0.0*$2+0.0*$3+c*(1 - cos(alpha*3.141592653589793/180)^2 -cos(beta*3.141592653589793/180)^2 - cos(gamma*3.141592653589793/180)^2 + 2*cos(alpha*3.141592653589793/180)*cos(beta*3.141592653589793/180)*cos(gamma*3.141592653589793/180))^(1/2)/sin(gamma*3.141592653589793/180)*$4),((0.45*28)/mass),$6}}' tmp.xyz >> tmp.cfg
+    endif
+  endif
+  @ count += 1
+end
+# ^[0-9]+$, ^\d{n}$, ^\d{n,}$, ^\d{m,n}$
+# ^(0[0-9)+)$, ^([1-9][0-9]+$), -(\-)>\d+(\.\d{1,5})?$
+# ^[1-9]\d+$, ^\-[1-9]\d+$
+# ^[A-Za-z0-9]+$, ^.{1-20}$,^[A-Za-z]+$, ^[A-Z]+$, ^[a-z]+$
+#
+rm -f -r tmp.xyz
+mv tmp.cfg ${filename}.cfg
+

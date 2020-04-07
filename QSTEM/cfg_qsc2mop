@@ -1,0 +1,94 @@
+#! /bin/csh -f
+set filename = $1
+cp ${filename}.cfg tmp.cfg
+#
+set element_list = (H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Sc Ti V Cr Mn Fe Co Ni Cu Zn Ga Ge As Se Br Kr Rb Sr Y Zr Nb Mo Tc Ru Rh Pd Ag Cd In Sn Sb Te I Xe Cs Ba La Ce Pr Nd Pm Sm Eu Gd Tb Dy Ho Er Tm Yb Lu Hf Ta W Re Os Ir Pt Au Hg Tl Pb Bi Po At Rn Fr Ra Ac Th Pa U Np Pu Am Cm Bk Cf Es Fm Md No Lr Rf Df Sg Bh Hs Mt Ds Rg Cn Nh Fl Mc Lv Ts Og)
+#
+set mass_list = (1.00794 4.00260 6.941 9.01218 10.81 12.0107 14.007 16.00 18.9984 20.180 22.99 24.305 26.98 28.1 30.97 32.1 35.45 39.95 39.10 40.08 44.955912 47.867 50.9415 51.9961 54.938045 55.845 58.933195 58.6934 63.546 65.38 69.723 72.63 74.92160 78.96 79.904 83.798 85.4678 87.62 88.90585 91.224 92.90638 95.96 98 101.07 102.90550 106.42 107.8682 112.411 114.818 118.710 121.760 127.60 126.90447 131.293 132.9054519 137.33 138.90547 140.116 140.90765 144.242 145 150.36 151.964 157.25 158.92535 162.500 164.93032 167.259 168.93421 173.054 174.9668 178.49 180.94788 183.84 186.207 190.23 192.217 195.084 196.966569 200.59 204.3833 207.2 208.98040 209 210 222 223 226 227 232.0381 231.03588 238.02891 237 244 243 247 247 251 252 257 258 259 262 261.11 268 271 270 269 278 281 281 285 286 289 289 293 294 294)
+#
+set element_flag = (0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)
+#
+set lattice_unit = `awk 'NR==2{print $3}' tmp.cfg`
+set La = `awk -v n=${lattice_unit} 'NR==3{printf "%10.6f",($3)*n}' tmp.cfg`
+set Lb = `awk -v n=${lattice_unit} 'NR==7{printf "%10.6f",($3)*n}' tmp.cfg`
+set Lc = `awk -v n=${lattice_unit} 'NR==11{printf "%10.6f",($3)*n}' tmp.cfg`
+echo $La >  ${filename}.para
+echo $Lb >> ${filename}.para
+echo $Lc >> ${filename}.para
+#
+set i = 1
+set j = 1
+foreach atom ($element_list)
+  set element_flag[$i] = `tail -n +13 tmp.cfg | grep -e ${atom} -n | sed -e 's/:.*//g'`
+  if ($element_flag[$i] > 0) then
+    @ j += 1
+  endif
+  @ i += 1
+end
+@ j += -1
+set max_atom_types = $j
+#
+#set MaxNo_div_i = $2
+#set MaxNo_div_j = $2
+#set MaxNo_div_k = $2
+set MaxNo_div_i = 1
+set MaxNo_div_j = 1
+set MaxNo_div_k = 1
+set div_i = 1
+while ($div_i <= $MaxNo_div_i)
+  set div_j = 1
+  while ($div_j <= $MaxNo_div_j)
+    set div_k = 1
+    while ($div_k <= $MaxNo_div_k)
+      echo " "
+      echo ${div_i}${div_j}${div_k}
+      echo "AUX LARGE CHARGE=0 PM7" > tmp.xyz
+      echo "Title" >> tmp.xyz
+      echo " " >> tmp.xyz
+      #
+      set ori_x_start = `echo "1.0/$MaxNo_div_i*($div_i-1)" | bc -l`
+      set ori_y_start = `echo "1.0/$MaxNo_div_j*($div_j-1)" | bc -l`
+      set ori_z_start = `echo "1.0/$MaxNo_div_k*($div_k-1)" | bc -l`
+      set ori_x_end = `echo "1.0/$MaxNo_div_i*($div_i)" | bc -l`
+      set ori_y_end = `echo "1.0/$MaxNo_div_j*($div_j)" | bc -l`
+      set ori_z_end = `echo "1.0/$MaxNo_div_k*($div_k)" | bc -l`
+      #
+      set i = 1
+      set j = 0
+      set element = "H"
+      foreach atom ($element_list)
+        if ($element_flag[$i] > 0) then
+          set end_line = `echo $element_flag[$i]"+10" | bc -l`
+          if ($j >= 1) then
+            echo $j" "$element
+            awk -v atom=$element -v sln=$start_line -v eln=$end_line -v a=$La -v b=$Lb -v c=$Lc -v oxs=$ori_x_start -v oxe=$ori_x_end -v oys=$ori_y_start -v oye=$ori_y_end -v ozs=$ori_z_start -v oze=$ori_z_end  '{if(NR>=sln && NR<=eln && oxs<=$1 && $1<=oxe && oys<=$2 && $2<=oye && ozs<=$3 && $3<=oze){printf " %s %8.6f 1 %8.6f 1 %8.6f 1 \n",atom,$1*a,$2*b,$3*c}}' tmp.cfg >> tmp.xyz
+          endif
+          @ j += 1
+          set start_line = `echo $end_line"+3" | bc -l`
+          set element = $atom
+        endif
+        @ i += 1
+      end
+      set end_line = `awk 'END{print NR}' tmp.cfg`
+      echo $j" "$element
+      awk -v atom=$element -v sln=$start_line -v eln=$end_line -v a=$La -v b=$Lb -v c=$Lc -v oxs=$ori_x_start -v oxe=$ori_x_end -v oys=$ori_y_start -v oye=$ori_y_end -v ozs=$ori_z_start -v oze=$ori_z_end  '{if(NR>=sln && NR<=eln && oxs<=$1 && $1<=oxe && oys<=$2 && $2<=oye && ozs<=$3 && $3<=oze){printf " %s %8.6f 1 %8.6f 1 %8.6f 1 \n",atom,$1*a,$2*b,$3*c}}' tmp.cfg >> tmp.xyz
+      #
+      mv tmp.xyz ${filename}_${div_i}${div_j}${div_k}.mop
+      #
+      @ div_k = $div_k + 1
+    end
+    @ div_j = $div_j + 1
+  end
+  @ div_i = $div_i + 1
+end
+#
+@ div_k = $div_k - 1
+@ div_j = $div_j - 1
+@ div_i = $div_i - 1
+mv ${filename}_${div_i}${div_j}${div_k}.mop ${filename}.mop
+awk -v n=${lattice_unit} 'NR==3{printf " Tv %7.4f 1  0.0000 0  0.0000 0 \n",($3)*n}' tmp.cfg >> ${filename}.mop
+awk -v n=${lattice_unit} 'NR==7{printf " Tv  0.0000 0  %7.4f 1  0.0000 0 \n",($3)*n}' tmp.cfg >> ${filename}.mop
+awk -v n=${lattice_unit} 'NR==11{printf " Tv  0.0000 0  0.0000 0  %7.4f 1 \n",($3)*n}' tmp.cfg >> ${filename}.mop
+#
+rm -f -r tmp.cfg
+#

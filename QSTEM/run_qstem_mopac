@@ -1,0 +1,40 @@
+#! /bin/csh -f
+
+set filename = $1
+
+echo -n > ${filename}.skip
+
+set No = 1
+set div = $2
+set MaxNo = $3
+while ($No <= $MaxNo)
+
+  ./lmp_cfg2cfg_qsc ${filename} -kv 80 -lab6
+  cp case.cfg tmp.cfg
+  python fit_tem.py
+  ./cfg_qsc2mop_div ${filename} $div
+  #
+  set i = 1
+  while ($i <= $div)
+    set j = 1
+    while ($j <= $div)
+      set k = 1
+      while ($k <= $div)
+        set end_line = `awk 'END{print NR}' ${filename}_$i$j$k.mop`
+        if ($end_line <= 3) then
+          echo $i$j$k >> ${filename}.skip
+        else
+          /opt/mopac/MOPAC2016.exe ${filename}_$i$j$k.mop
+        endif
+        @ k = $k + 1
+      end
+      @ j = $j + 1
+    end
+    @ i = $i + 1
+  end
+  #
+  ./mop_div2lmp_cfg ${filename} $div
+  cp ${filename}.lmp_cfg ${filename}.cfg
+  #
+  @ No = $No + 1
+end

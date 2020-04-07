@@ -1,0 +1,39 @@
+#! /bin/csh -f
+set filename = $1
+cp ${filename}.gro tmp.gro
+echo " (Version 3 format configuration file)" > tmp.cfg
+echo " M    " >> tmp.cfg
+echo " " >> tmp.cfg
+echo "          0         0         0 moves generated, tried, accepted" >> tmp.cfg
+echo "          0                     configurations saved" >> tmp.cfg
+echo " " >> tmp.cfg
+awk  'NR==2{print "       %d molecules (of all types) \n", $1}' tmp.gro >> tmp.cfg
+echo "          2 types of molecule"  >> tmp.cfg
+echo "          1 is the largest number of atoms in a molecule"  >> tmp.cfg
+echo "          0 Euler angles are provided"  >> tmp.cfg
+echo " " >> tmp.cfg
+echo "          F (Box is not truncated octahedral)" >> tmp.cfg
+echo "            Defining vectors are:" >> tmp.cfg
+#
+set a = `awk 'END{print $1}' tmp.gro`
+set b = `awk 'END{print $2}' tmp.gro`
+set c = `awk 'END{print $3}' tmp.gro`
+echo "lattice constant a, b, c: "${a}", "${b}", "${c}
+awk -v a=${a} 'NR==6{printf "              %10.6f     0.000000   0.000000  \n",a/2 }' tmp.gro >> tmp.cfg
+awk -v b=${b} 'NR==7{printf "               0.000000  %10.6f     0.000000  \n",b/2 }' tmp.gro >> tmp.cfg
+awk -v c=${c} 'NR==8{printf "               0.000000   0.000000  %10.6f \n", c/2         }' tmp.gro >> tmp.cfg
+#
+echo " " >> tmp.cfg
+echo "        219 molecules of type  1" >> tmp.cfg
+echo "          1 atomic sites" >> tmp.cfg
+echo "              0.000000   0.000000   0.000000" >> tmp.cfg
+echo " " >> tmp.cfg
+echo "         31 molecules of type  2" >> tmp.cfg
+echo "          1 atomic sites" >> tmp.cfg
+echo "              0.000000   0.000000   0.000000" >> tmp.cfg
+echo " " >> tmp.cfg
+sed -i '$d' tmp.gro
+awk -v a=${a} -v b=${b} -v c=${c} '(NR>=3){printf "%12.6f %12.6f %12.6f \n",($4/a-0.5),($5/b-0.5),($6/c-0.5) }' tmp.gro >> tmp.cfg
+mv tmp.cfg ${filename}.cfg
+rm -f -r tmp.gro
+
