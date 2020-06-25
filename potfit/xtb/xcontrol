@@ -1,0 +1,12 @@
+$md
+   temp=1498.15 # in K, thermostat temperature
+   time=  4.0  # in ps, total run time of simulation
+   dump=2000.0 # in fs, interval for trajectory printout
+   step=  4.0  # in fs, time step for propagation
+   velo=false  # also write out velocities
+   nvt =false  # perform simulation in NVT ensemble
+   hmass=4     # mass of hydrogen atoms (integer)
+   shake=0     # 0 = off,1 = X-H only, 2 = all bonds
+   sccacc=2.0  # accuracy of xTB calculation in dynamics
+   restart=false # read velocities from mdrestart
+$end

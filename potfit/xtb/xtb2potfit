@@ -1,0 +1,39 @@
+#!/bin/csh -f 
+
+set nl_all = `grep . $1 | wc -l`
+set nl = `echo "${nl_all}-8" | bc`
+echo '#N '${nl}' 1' > config
+awk '(NR==6){print "#C "$0}' Al2Cu_2x2x1.poscar >> config
+awk '(NR==3){print "#X "$0}' Al2Cu_2x2x1.poscar >> config
+awk '(NR==4){print "#Y "$0}' Al2Cu_2x2x1.poscar >> config
+awk '(NR==5){print "#Z "$0}' Al2Cu_2x2x1.poscar >> config
+set energy = `grep energy gradlatt | sed  -e 's/|.*//' -e 's/.*=//' | awk '{printf "%12.6f",$1}'`
+echo '#W 1.00000' >> config
+echo '#E '${energy} >> config
+set sxx = `awk '(NR==6){printf "%12.6f",$1}' gradlatt`
+set sxy = `awk '(NR==6){printf "%12.6f",$2}' gradlatt`
+set sxz = `awk '(NR==6){printf "%12.6f",$3}' gradlatt`
+set syy = `awk '(NR==7){printf "%12.6f",$2}' gradlatt`
+set syz = `awk '(NR==7){printf "%12.6f",$3}' gradlatt`
+set szz = `awk '(NR==8){printf "%12.6f",$3}' gradlatt`
+echo "#S "${sxx}" "${syy}" "${szz}" "${sxy}" "${syz}" "${sxz} >> config
+echo '#F' >> config
+set nl_all = `grep . gradient | wc -l`
+set nl = `echo "(${nl_all}-3)/2" | bc`
+set old_elem = "Xx"
+set elem = -1
+set n = 1
+while ( $n <= ${nl})
+  set new_elem = `awk -v line=${n} '(NR==line+2){printf "%s",$4}' gradient`
+  if ("${new_elem}" != "${old_elem}") then
+    @ elem = $elem + 1
+  endif
+  set pos = `awk -v line=${n} -v ele=${elem} '(NR==line+2){printf "%5i %12.6f %12.6f %12.6f",ele,$1,$2,$3}' gradient`
+  set force = `awk -v line=${n} -v lnl=${nl} '(NR==line+2+lnl){printf "%12.6f %12.6f %12.6f",$1,$2,$3}' gradient`
+  #set pos = `awk -v line=${n} -v ele=${elem} '(NR==line+2){print ele" "$1" "$2" "$3}' gradient`
+  #set force = `awk -v line=${n} -v lnl=${nl} '(NR==line+2+lnl){print $1" "$2" "$3}' gradient`
+  echo ${pos}"  "${force} >> config
+  set old_elem = ${new_elem}
+  @ n = $n + 1
+end
+
