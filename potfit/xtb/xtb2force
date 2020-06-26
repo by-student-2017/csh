@@ -1,5 +1,6 @@
 #!/bin/csh -f 
 
+sed -i 's/[ \t]*$//' $1
 set nl_all = `grep . $1 | wc -l`
 set nl = `echo "${nl_all}-8" | bc`
 echo '#N '${nl}' 1' > config
