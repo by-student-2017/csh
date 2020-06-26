@@ -59,6 +59,7 @@ foreach poscar_name_pre (${poscar_list})
         mv config_all config
       else
         xtb ${poscar_name} --periodic --opt
+        xtb ${poscar_name} --periodic --restart --grad
         ../xtb2force
       endif
 
