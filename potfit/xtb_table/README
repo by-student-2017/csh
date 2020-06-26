@@ -1,0 +1,10 @@
+
+1. chmod +x xtb2force
+2. chmod +x run_md.csh
+3. chmod +x run_xtb_potfit_table
+4. chmod +x correct_config
+5. cp correct_config ~/potfit/util
+6. gedit table
+7. ./run_xtb_potfit_table
+
+Note: xtb can do it for small system in 25/Jun/2020.

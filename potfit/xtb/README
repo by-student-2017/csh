@@ -1,7 +1,12 @@
 
-1. chmod +x xtb2potfit
+optimization + md
+1. chmod +x xtb2force
 2. chmod +x run.csh
 3. ./run.csh Al2Cu.poscar 50
   (you can get config_all)
 
-Note: xtb can do it for small system in 25/Jun/2020.
+md only
+1. chmod +x xtb2force
+2. chmod +x run_md.csh
+3. ./run.csh Al2Cu.poscar 50
+  (you can get config_all)

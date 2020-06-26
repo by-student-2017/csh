@@ -1,0 +1,7 @@
+| Structure(POSCAR) | W | Tmin | Tmax | NT | Vmax(%) | NV(odd) | wiht force | N(MD)|
+------------------------------------------------------------------------------------
+Configurations with attributed forces (MD calculation)
+Al2Cu_md.poscar       1   300.0  300.0    1      6         1        1          50
+ 
+Configurations without attributed forces (SCF calculation)
+Al2Cu_opt.poscar     15     0.0    0.0    1      6         1        0          0
