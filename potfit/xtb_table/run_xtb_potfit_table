@@ -5,8 +5,11 @@ set ncore = `echo ${num_core_pc} | awk '{printf "%d",sqrt($0)}'`
 set num_core_potfit = 0 # less than number of data in config. 0: auto 
 
 set filename = $1
+set potential_type = $2
 
 echo -n "" > ${filename}.config
+echo -n "" > ${filename}.pot
+echo -n "" > param_file
 
 echo "| Structure | Nc | Nat | W | Tmin-Tmax | Vmin-Vmax | Nmd |" > output_table
 echo "----------------------------------------------------------" >> output_table

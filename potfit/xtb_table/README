@@ -5,6 +5,7 @@
 4. chmod +x correct_config
 5. cp correct_config ~/potfit/util
 6. gedit table
-7. ./run_xtb_potfit_table Al-Cu
+7. ./run_xtb_potfit_table Al-Cu adp
+  (or ./run_xtb_potfit_table Al-Cu eam)
 
-Note: xtb can do it for small system in 25i/Jun/2020.
+Note: xtb can do it for small system in 25/Jun/2020.
