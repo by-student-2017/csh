@@ -57,12 +57,11 @@ foreach poscar_name_pre (${poscar_list})
       awk -v scale=${scale} '{if(NR==2){printf " %19.15f \n",$1*scale}else{printf "%s \n", $0}}' POSCAR_tmp > ${poscar_name}
 
       if (${F_flag} == 1) then
-        #xtb ${poscar_name} --periodic --md --input xcontrol
         ../run_md.csh ${poscar_name} ${Nmd}
         mv config_all config
       else
-        xtb ${poscar_name} --periodic --opt
-        xtb ${poscar_name} --periodic --restart --grad
+        xtb ${poscar_name} --gfn 0 --opt
+        xtb ${poscar_name} --gfn 0 --restart --grad
         ../xtb2force ${poscar_name}
       endif
 
